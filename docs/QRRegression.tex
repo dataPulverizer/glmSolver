@@ -1,0 +1,64 @@
+\documentclass[14pt]{article}
+\usepackage{amsmath}
+\usepackage{extsizes}
+\numberwithin{equation}{subsection}
+\renewcommand{\theequation}{\arabic{equation}}
+\begin{document}
+\section*{Notes on QR decomposition in Weighted Least Squares/GLM}
+%${\rm I\!R}$ % real number line
+\noindent Let $X \in {\rm I\!R}^{m\times n}, \quad Q\in  {\rm I\!R}^{m\times m},\quad R\in  {\rm I\!R}^{m\times n}$ and $m \geq n$.\\\\
+R is upper traingular\\
+Q is upper triangular\\\\
+
+\noindent The submatrices\\
+$Q_1 = Q(1{:}m, 1{:}n)$\\
+$R_1 = R(1{:}n, 1{:}n)$\\\\
+
+\noindent $X = Q_1 R_1, \quad Q_1\in {\rm I\!R}^{m\times n}, R\in {\rm I\!R}^{n\times n}$\\\\
+
+\noindent The default regression formula is given by:
+
+%\noindent $(XW^TX)\beta = X^T W y \qquad \ldots (1)$
+
+\begin{flalign}\label{eq:eq1}
+\noindent (XW^TX)\beta & = X^T W y &
+\end{flalign}
+
+\noindent solve for $\beta = (X^TWX)^{-1}X^{T}Wy$ using an appropriate solver. However solve instead transform:
+
+\begin{flalign}
+(W^{1/2}X)^T (W^{1/2}X)\beta & = (W^{1/2}X)^T (W^{1/2}y) &
+\end{flalign}
+
+\noindent{Now redefine:\\
+$X = W^{1/2}X;\quad y = W^{1/2}y$\\
+so we can write \eqref{eq:eq1} again as \\\\
+$(X^TX)\beta = X^Ty$\\
+so $X = Q_1 R_1$\\
+$(Q_1 R_1)^T (Q_1 R_1)\beta = (Q_1 R_1)^T y_1$\\
+$R^T_1 R_1 \beta = R^T_1 Q^T_1 y$\\
+$(R^T_1)^{-1}R^T_1 R_1 R_1 \beta = (R^T_1)^{-1}R^T_1 Q^T_1 y$
+$R_1 \beta = Q^T_1 y$\\
+}
+
+\noindent{$R_1$ is an upper triangular $n\times n$ matrix, $\beta$ is a $n\times 1$\\
+let $z = Q^T_1 y$, so the equation is $R_1 \beta = z$\\
+so solve conventionally $\beta = R^{-1}_1 z$\\\\
+}
+
+\noindent{So do:
+
+\begin{enumerate}
+\item $QR$ decomposition of the matrix $W^{1/2}X$ (use \texttt{dgeqrf()} lapack function).
+\item Calculation $z = Q^T_1 W^{1/2}y$, where $z$ is ${n\times 1}$, and $Q_1$ is ${m\times n}$, $y$ is ${m \times 1}$.
+\item Do a solve for $\beta = R^{-1}_1 z$, where $R$ is a $n\times n$ matrix solver for triangular matrix (\texttt{dtrtrs()} lapack function).
+\end{enumerate}
+}
+
+\noindent{$QR$ decomposition links:\\
+netlib.org/lapack/lug/node40.html\\
+netlib.org/lapack/lug/node46.html\\
+milq.github.io/install-latex-ubuntu-debian/
+}
+
+\end{document}
