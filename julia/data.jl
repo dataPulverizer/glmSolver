@@ -4,7 +4,7 @@
 
 using DelimitedFiles: readdlm, writedlm
 
-path = "/home/chib/code/GLMPrototype/"
+path = "/home/chib/code/glmSolver/"
 
 # Read the data
 

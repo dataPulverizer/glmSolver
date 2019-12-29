@@ -1,10 +1,10 @@
 #=
   Testing for glm.jl
 =#
-path = "/home/chib/code/GLMPrototype/"
+path = "/home/chib/code/glmSolver/"
 
-include(path*"julia/glm.jl")
-include(path*"julia/data.jl");
+include(path * "julia/glm.jl")
+include(path * "julia/data.jl");
 
 
 # Fit the models
@@ -46,36 +46,6 @@ log_link_power_distrib = glm(carsX, carsY, PowerDistribution(0.5), PowerLink(0.5
 logit_link_binomial_distribution = glm(educationX, educationY, BinomialDistribution(), LogLink())
 cauchit_link_binomial_distribution = glm(educationX, educationY, BinomialDistribution(), CauchitLink())
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #=======================================================================================#
 igaussianLogModel = glm(energyX, energyY, InverseGaussianDistribution(), LogLink())
 igaussianInverseModel = glm(energyX, energyY, InverseGaussianDistribution(), InverseLink()) 
@@ -86,7 +56,7 @@ bernoulliProbit = glm(gpaX, gpaY, BinomialDistribution(), ProbitLink())
 bernoulliOddsPower0 = glm(creditX, creditY, BinomialDistribution(), OddsPowerLink(0.0))
 
 # Need to get examples for this to make this link function behave better
-bernoulliOddsPower1 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(1))
+bernoulliOddsPower1 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(1.0))
 
 
 bernoulliLogComplementary = glm(gpaX, gpaY, BinomialDistribution(), LogComplimentLink())
