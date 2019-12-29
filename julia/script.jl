@@ -3,7 +3,7 @@
 =#
 path = "/home/chib/code/glmSolver/"
 
-include(path * "julia/glm.jl")
+include(path * "julia/glm.jl");
 include(path * "julia/data.jl");
 
 

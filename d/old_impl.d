@@ -452,12 +452,6 @@ if(isNumeric!T)
     return new RowVector!T(data.dup);
   }
 }
-/********************************************* Testing Functions *********************************************/
-/* Testing allowing template parameters to be passed on using parameters */
-void dispatchTemplate(T, CBLAS_LAYOUT L)(Matrix!(T, L) m)
-{
-  writeln("Matrix Layout: ", L, ", with element type: ", T.stringof, "\n");
-}
 /********************************************* Convenient Matrix Functions *********************************************/
 Matrix!T createRandomMatrix(T = double)(ulong m)
 {
@@ -1994,7 +1988,7 @@ if(isFloatingPoint!T)
   while(relErr > control.epsilon) /* (absErr > control.epsilon) | (relErr > control.epsilon) */
   {
     if(control.printError)
-      writefln("Iteration: %d", iter);
+      writeln("Iteration: ", iter);
     auto z = link.Z(y, mu, eta);
     if(doOffset)
       z = map!( (x1, x2) => x1 - x2 )(z, offset);
@@ -2240,8 +2234,6 @@ void demo1()
   
   /* This results in an error because the matrices have different dimensions */
   //writeln("This should be an error: ", sweep!((double x1, double x2) => x1 + x2)(m7, m8));
-
-  dispatchTemplate(m8);
 
   /* Create a matrix using the array to mass on the matrix type */
   double[] arr = [1.0, 2.0, 3.0, 4.0];
