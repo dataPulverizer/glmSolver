@@ -1,4 +1,8 @@
 #=
+  GLM Family Functions
+=#
+
+#=
   Types for Distribution Functions
 =#
 abstract type AbstractDistribution end

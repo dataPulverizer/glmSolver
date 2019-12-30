@@ -3,7 +3,10 @@
 =#
 path = "/home/chib/code/glmSolver/"
 
-include(path * "julia/glm.jl");
+include(path * "julia/GLMSolver.jl")
+using .GLMSolver
+
+# Load the data set
 include(path * "julia/data.jl");
 
 

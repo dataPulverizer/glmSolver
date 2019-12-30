@@ -1,4 +1,6 @@
-# Link Functions
+#=
+  GLM Link Functions
+=#
 
 using Distributions
 

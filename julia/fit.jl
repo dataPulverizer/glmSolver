@@ -1,5 +1,6 @@
-path = "/home/chib/code/glmSolver/"
-include(path * "julia/tools.jl")
+#=
+  Module To Fit GLM
+=#
 
 function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
               offset::Array{T, 1} = Array{T, 1}(undef, 0), weights = Array{T, 1}(undef, 0), 
@@ -153,4 +154,3 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
   return GLM(link, distrib, coef, Cov, iter, relErr, absErr, converged, 
              dev, residuals)
 end
-

@@ -1,6 +1,6 @@
-path = "/home/chib/code/glmSolver/"
-include(path * "julia/link.jl")
-include(path * "julia/family.jl")
+#=
+  Error Functions, GLM Object, Z, W
+=#
 
 # This implementation of calculation of z is the same for all the link functions
 @inline function Z(link::AbstractLink, y::Array{T, 1}, mu::Array{T, 1}, 
