@@ -26,10 +26,10 @@ binomial_logit_link = glm(creditX, creditY, BinomialDistribution(), LogitLink())
 #= Binomial Distribution With Probit Link =#
 binomial_probit_link = glm(gpaX, gpaY, BinomialDistribution(), ProbitLink())
 binomial_cauchit_link = glm(gpaX, gpaY, BinomialDistribution(), CauchitLink())
-binomial_oddspower_link_1 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(1.0))
+binomial_oddspower_link_1 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(2.0))
 
 binomial_distrib_odds_power_link_1 = glm(creditX, creditY, BinomialDistribution(), OddsPowerLink(0.0))
-binomial_distrib_odds_power_link_2 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(1.0))
+binomial_distrib_odds_power_link_2 = glm(educationX, educationY, BinomialDistribution(), OddsPowerLink(2.0))
 
 # binomial_oddspower_link_2 = glm(creditX, creditY, BinomialDistribution, OddsPowerLink{1})
 bernoulli_logcomplementary = glm(gpaX, gpaY, BinomialDistribution(), LogComplimentLink())

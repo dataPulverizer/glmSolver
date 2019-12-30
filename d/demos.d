@@ -349,10 +349,13 @@ void main()
   auto logit_link_binomial_distrib_two_col = glm(educationX, educationY, 
       new BinomialDistribution!double(), new LogitLink!double());
   writeln(logit_link_binomial_distrib_two_col);
-  }
   /* Cauchit Link With Binomial Distribution */
   auto cauchit_link_binomial_distrib_two_col = glm(educationX, educationY, 
       new BinomialDistribution!double(), new CauchitLink!double());
   writeln(cauchit_link_binomial_distrib_two_col);
+  }
+  /* Gamma Distribution With Log Link */
+  auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
+  writeln(gamma_distrib_log_link);
 }
 

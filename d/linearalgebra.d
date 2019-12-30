@@ -227,6 +227,7 @@ Matrix!(T, layout) pinv(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) mat)
 /*
   Convert outcome from QR algorithm to R Matrix. See page 723 from the 
   MKL library. Table "Computational Routines for Orthogonal Factorization".
+  Gets the Upper R matrix from the QR decomposition.
 */
 auto qrToR(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) qr)
 {

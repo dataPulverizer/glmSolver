@@ -3,9 +3,9 @@ module GLMSolver
 path = "/home/chib/code/glmSolver/"
 include(path * "julia/link.jl")
 include(path * "julia/family.jl")
+include(path * "julia/solver.jl")
 include(path * "julia/tools.jl")
 include(path * "julia/fit.jl")
-
 
 export AbstractLink,
        IdentityLink,
@@ -35,6 +35,10 @@ export AbstractLink,
        init!,
        variance,
        devianceResiduals,
+       AbstractSolver,
+       VanillaSolver,
+       QRSolver,
+       solve,
        Z,
        W,
        Control,
@@ -42,5 +46,4 @@ export AbstractLink,
        relativeError,
        GLM,
        glm
-
 end # module

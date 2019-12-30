@@ -3,8 +3,8 @@
 =#
 
 function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
-              offset::Array{T, 1} = Array{T, 1}(undef, 0), weights = Array{T, 1}(undef, 0), 
-              control::Control{T} = Control{T}()) where {T <: AbstractFloat}
+              solver::Type{<: AbstractSolver} = VanillaSolver, offset::Array{T, 1} = Array{T, 1}(undef, 0), 
+              weights = Array{T, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
   y, mu, weights = init!(distrib, y, weights)
   eta = linkfun(link, mu)
@@ -43,6 +43,9 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
     if doOffset
       z .-= offset
     end
+    
+    
+    # w::Array{T, 1} = W(solver, distrib, link, mu, eta)
     w::Array{T, 1} = W(distrib, link, mu, eta)
     if doWeights
       w .*= weights
@@ -55,8 +58,18 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
       end
     end
 
-    Cov = inv(transpose(xw) * x)
-    coef::Array{T, 1} = Cov * transpose(xw) * z
+    #if solver == QRSolver
+    #  z .*= w
+    #end
+    z .*= w
+
+    # if solver == VanillaSolver
+    #   Cov = inv(transpose(xw) * x)
+    #   coef::Array{T, 1} = Cov * transpose(xw) * z
+    # end
+
+    # Overwrites xw in the QR case!
+    coef = solve(solver, xw, z)
 
     if(control.printCoef)
       println(coef)
@@ -128,6 +141,15 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
     devold = dev
     coefold = coef
 
+    #if solver == QRSolver
+    #  Cov = xw' * xw
+    #end
+    #
+    #if solver == VanillaSolver
+    #  Cov = xw' * x
+    #end
+    Cov = xw' * xw
+
     if control.printError
       # println("Iteration: $iter")
       println("Deviance: $dev")
@@ -151,6 +173,6 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
     converged = true
   end
 
-  return GLM(link, distrib, coef, Cov, iter, relErr, absErr, converged, 
+  return GLM(link, distrib, coef, inv(Cov), iter, relErr, absErr, converged, 
              dev, residuals)
 end
