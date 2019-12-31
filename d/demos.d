@@ -185,7 +185,7 @@ void qr_test()
   writeln("QR decomposition R: ", qrOutput.R);
 }
 
-void qr_vs_conventional()
+void timed_glm_demo()
 {
   /* GLM Demo */
 
@@ -199,7 +199,8 @@ void qr_vs_conventional()
   auto sw = StopWatch(AutoStart.no);
   sw.start();
   auto gamma_distrib_log_link = glm(energyX, energyY, 
-      new GammaDistribution!double(), new LogLink!double());
+      new GammaDistribution!double(), new LogLink!double(),
+      new QRSolver!(double)());
   sw.stop();
   writeln(gamma_distrib_log_link);
   writeln("Time taken: ", sw.peek.total!"msecs");
@@ -259,31 +260,38 @@ void main()
   /* Education Data for negative Binomial Distribution */
   auto educationX = readMatrix!double(path ~ "data/educationX.bin");
   auto educationY = readMatrix!double(path ~ "data/educationY.bin");
-
-  if(false)
+  
+  if(true)
   {
   /* Gamma Distribution With Log Link */
-  auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
+  auto gamma_distrib_log_link = glm(energyX, energyY, 
+      new GammaDistribution!double(), new LogLink!double());
   writeln(gamma_distrib_log_link);
   
   /* Gamma Distribution With Inverse Link */
-  auto gamma_distrib_inv_link = glm(energyX, energyY, new GammaDistribution!double(), new InverseLink!double());
+  auto gamma_distrib_inv_link = glm(energyX, energyY,
+      new GammaDistribution!double(), new InverseLink!double());
   writeln(gamma_distrib_inv_link);
   
   /* Gamma Distribution With Identity Link */
-  auto gamma_distrib_identity_link = glm(energyX, energyY, new GammaDistribution!double(), new IdentityLink!double());
+  auto gamma_distrib_identity_link = glm(energyX, energyY,
+      new GammaDistribution!double(), new IdentityLink!double());
   writeln(gamma_distrib_identity_link);
   
   /* Gamma Distribution With Power Link */
-  auto gamma_distrib_power_link = glm(energyX, energyY, new GammaDistribution!double(), new PowerLink!double(0));
+  auto gamma_distrib_power_link = glm(energyX, energyY,
+      new GammaDistribution!double(), new PowerLink!double(0));
   writeln(gamma_distrib_power_link);
-  auto gamma_distrib_power_link_2 = glm(carsX, carsY, new GammaDistribution!double(), new PowerLink!double(1/3));
+  auto gamma_distrib_power_link_2 = glm(carsX, carsY,
+      new GammaDistribution!double(), new PowerLink!double(1/3));
   writeln(gamma_distrib_power_link_2);
 
   /* Gamma Distribution With Negative Binomial Link */
-  auto gamma_distrib_negative_binomial_link_1 = glm(carsX, carsY, new GammaDistribution!double(), new NegativeBinomialLink!double(1.0));
+  auto gamma_distrib_negative_binomial_link_1 = glm(carsX, carsY,
+      new GammaDistribution!double(), new NegativeBinomialLink!double(1.0));
   writeln(gamma_distrib_negative_binomial_link_1);
-  auto gamma_distrib_negative_binomial_link_2 = glm(energyX, energyY, new GammaDistribution!double(), new NegativeBinomialLink!double(2.0));
+  auto gamma_distrib_negative_binomial_link_2 = glm(energyX, energyY,
+      new GammaDistribution!double(), new NegativeBinomialLink!double(2.0));
   writeln(gamma_distrib_negative_binomial_link_2);
   /* Binomial Distribution With Logit Link Function */
   auto binomial_logit_link = glm(creditX, creditY, 
@@ -355,7 +363,7 @@ void main()
   writeln(cauchit_link_binomial_distrib_two_col);
   }
   /* Gamma Distribution With Log Link */
-  auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
-  writeln(gamma_distrib_log_link);
+  //auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
+  //writeln(gamma_distrib_log_link);
 }
 

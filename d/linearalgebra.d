@@ -6,10 +6,12 @@ module linearalgebra;
 import arrays;
 import arraycommon;
 import apply;
+import link;
+import distributions;
 import std.conv: to;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
-
+//import std.stdio: writeln;
 /********************************************* CBLAS & Lapack Imports *********************************************/
 extern(C) @nogc nothrow{
   void cblas_dgemm(in CBLAS_LAYOUT layout, in CBLAS_TRANSPOSE TransA,
@@ -45,6 +47,8 @@ extern(C) @nogc nothrow{
   int LAPACKE_dgeqrf(int matrix_layout, int m, int n, double* a, int lda, double* tau);
   int LAPACKE_dtrtrs(int matrix_layout, char uplo, char trans, char diag, int n, int nrhs, in double* a, int lda , double* b, int ldb);
   int LAPACKE_dorgqr(int matrix_layout, int m, int n, int k, double* a, int lda, in double* tau);
+  int LAPACKE_dgels( int matrix_layout, char trans, int m , int n, int nrhs, double* a, int lda, double* b, int ldb);
+
   /* Set the number of threads for blas/lapack in openblas */
   void openblas_set_num_threads(int num_threads);
 }
@@ -61,6 +65,8 @@ alias LAPACKE_dpotrs dpotrs;
 alias LAPACKE_dgeqrf dgeqrf;
 alias LAPACKE_dtrtrs dtrtrs;
 alias LAPACKE_dorgqr dorgqr;
+alias LAPACKE_dgels dgels;
+
 
 /* Norm function */
 double norm(int incr = 1)(double[] x)
@@ -160,6 +166,9 @@ ColumnVector!(T) solve(CBLAS_SYMMETRY symmetry = CblasGeneral, T, CBLAS_LAYOUT l
   }
   return new ColumnVector!(T)(b);
 }
+
+alias _solve = solve;
+
 /********************************************* Matrix Inverses ******************************************/
 /* Returns the inverse of a matrix */
 Matrix!(T, layout) inv(CBLAS_SYMMETRY symmetry = CblasGeneral, T, CBLAS_LAYOUT layout)(Matrix!(T, layout) mat){
@@ -265,12 +274,37 @@ auto qrls(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
   assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function LAPACKE_dorgqr");
   //writeln("Q Matrix:\n", Q);
   //writeln("R Matrix:\n", R);
-
+  
   ColumnVector!(T) z = mult_!(T, layout, CblasTrans)(Q, y);
   //writeln("z: \n", z);
-  ColumnVector!(T) coef = solve(R, z);
+  info = dtrtrs(layout, 'U', 'N', 'N', n, 1, R.getData.ptr, n , z.getData.ptr, n);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function LAPACKE_dtrtrs");
+  //ColumnVector!(T) coef = solve(R, z);
+  
   //auto ret = tuple!("coef", "R")(coef, R);
   //writeln("Coefficient & R:\n", ret);
+  //return tuple!("coef", "R")(coef, R);
+  
+  return tuple!("coef", "R")(z, R);
+}
+auto qrls2(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+{
+  int m = cast(int)X.nrow;
+  int n = cast(int)X.ncol;
+  assert(m > n, "Number of rows is less than the number of columns.");
+  auto a = X.getData.dup;
+  T[] tau = new T[n];
+  int lda = layout == CblasColMajor ? m : n;
+  int info = dgels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
+  //int info = dgeqrf(layout, m, n, a.ptr, lda, tau.ptr);
+  
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function LAPACKE_dgels");
+  //writeln("tau:", tau);
+  auto Q = matrix(a, [m, n]);
+  auto R = qrToR(Q);
+  auto coef = new ColumnVector!(T)(y.getData[0..n]);
+    
   return tuple!("coef", "R")(coef, R);
 }
 /******************************************* Internal Solver Fucntions *********************************/
@@ -292,6 +326,10 @@ void _conventional_solver(T, CBLAS_LAYOUT layout = CblasColMajor)
 /*
   QR Solver:
   coef = (R)^(-1) (Q^T y)
+  The arguments are passed by reference and are updated by the
+  QR solver function. It is a "home-brewed" QR solver that uses
+  dgeqrf, dorgqr, dtrtrs functions to carry out QR and then
+  does an upper triangular solve to return the coefficient
 */
 void _qr_solver(T, CBLAS_LAYOUT layout = CblasColMajor)
         (ref Matrix!(T, layout) R, ref Matrix!(T, layout) x, 
@@ -305,4 +343,122 @@ void _qr_solver(T, CBLAS_LAYOUT layout = CblasColMajor)
   coef = coefR.coef;
   R = coefR.R;
 }
+
+/*
+  QR Solver Using DGELS function
+*/
+void _qr_solver2(T, CBLAS_LAYOUT layout = CblasColMajor)
+        (ref Matrix!(T, layout) R, ref Matrix!(T, layout) x, 
+        ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+        ref ColumnVector!(T) coef)
+{
+  //writeln("QR Solver");
+  auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+  auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+  auto coefR = qrls2!(T, layout)(xw, zw);
+  coef = coefR.coef;
+  R = coefR.R;
+}
+
+void _conventional_solver_2(T, CBLAS_LAYOUT layout = CblasColMajor)
+        (ref Matrix!(T, layout) xwx, ref Matrix!(T, layout) x,
+        ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+        ref ColumnVector!(T) coef)
+{
+  auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+  auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+  xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, xw.dup);
+  auto xwz = mult_!(T, layout, CblasTrans)(xw, zw);
+  coef = solve(xwx, xwz);
+}
+/**************************************** Solver Classes ***************************************/
+/*
+  Class of functions for calculating coefficients and covariance
+*/
+interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
+{
+  /* Calculation for regression weights */
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta);
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              ColumnVector!(T) mu, ColumnVector!(T) eta);
+  /* 
+    Solver for calculating coefficients and preparing either R or xwx 
+     for later calculating covariance matrix
+  */
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
+              ref ColumnVector!(T) w, ref ColumnVector!(T) coef);
+  /* Covariance calculation happens at the end of the regression function */
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx);
+}
+
+/*
+  Vanilla (default) solver:
+  1. Calculates regression weights: W()
+  2. Solves (X'WX)b = X'Wy for b: solve()
+  3. Calculates (X'WX)^(-1): cov()
+*/
+class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    //writeln("Debug Vanilla Solver: (W)");
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
+              ref ColumnVector!(T) w, ref ColumnVector!(T) coef)
+  {
+    //writeln("Debug Vanilla Solver: solve()");
+    auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+    auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    coef = _solve(xwx, xwz);
+  }
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx)
+  {
+    //writeln("Debug Vanilla Solver: cov()");
+    return inv(xwx);
+  }
+}
+
+/*
+  QR Solver:
+  1. Calculates regression weights as square root of standard weights: W()
+  2. Solves using QR decomposition: solve()
+  3. Calculates (R'R)^(-1): cov()
+*/
+class QRSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^-(0.5);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
+              ref ColumnVector!(T) w, ref ColumnVector!(T) coef)
+  {
+    auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+    auto coefR = qrls2!(T, layout)(xw, zw);
+    coef = coefR.coef;
+    R = coefR.R;
+  }
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx)
+  {
+    xwx = mult_!(T, layout, CblasTrans)(R, R.dup);
+    return inv(xwx);
+  }
+}
+
 

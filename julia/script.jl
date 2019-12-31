@@ -9,7 +9,6 @@ using .GLMSolver
 # Load the data set
 include(path * "julia/data.jl");
 
-
 # Fit the models
 # TODO: Fix the things that are not converging
 gamma_distrib_log_link = glm(energyX, energyY, GammaDistribution(), LogLink())

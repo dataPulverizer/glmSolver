@@ -58,15 +58,7 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
       end
     end
 
-    #if solver == QRSolver
-    #  z .*= w
-    #end
     z .*= w
-
-    # if solver == VanillaSolver
-    #   Cov = inv(transpose(xw) * x)
-    #   coef::Array{T, 1} = Cov * transpose(xw) * z
-    # end
 
     # Overwrites xw in the QR case!
     coef = solve(solver, xw, z)
@@ -141,13 +133,6 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
     devold = dev
     coefold = coef
 
-    #if solver == QRSolver
-    #  Cov = xw' * xw
-    #end
-    #
-    #if solver == VanillaSolver
-    #  Cov = xw' * x
-    #end
     Cov = xw' * xw
 
     if control.printError
