@@ -14,7 +14,9 @@ struct VanillaSolver <: AbstractSolver end
 struct QRSolver <: AbstractSolver end
 
 #=
-  Fix this later
+  TODO:
+  1. Unify the QRSolve and Vanilla solve interface as in
+     the D implementation.
 =#
 function solve(::Type{<: VanillaSolver}, X::Array{T, 2}, y::Array{T, 1}) where {T <: AbstractFloat}
   ret::Array{T, 1} = Array{T, 1}(undef, 0)
