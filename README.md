@@ -13,7 +13,7 @@ is a small scale implementation of the GLM. It is a prototype only where various
 can be tried out.
 - [ ] 2. Do a speed optimization of the GLM prototype created in (1). Things to consider:
   - [x] i.  Matrix decomposition methods e.g. QR etc.
-  - [ ] ii. Optimise QR Speed by taking upper triangular R into account in the solve process.
+  - [ ] ii. ~~Optimise QR Speed by taking upper triangular R into account in the solve process.~~ Instead create various solver options using LAPACK linear equation solvers and least squares solvers. A very good website references is [Mark Gates](http://www.icl.utk.edu/~mgates3/) which has a good [routines list](http://www.icl.utk.edu/~mgates3/docs/lapack.html) documentation. It is well worth reading his lecture notes on dense linear algebra [part 1](http://www.icl.utk.edu/~mgates3/files/lect09-dla-2019.pdf) and [part 2](http://www.icl.utk.edu/~mgates3/files/lect10-dla-part2-2019.pdf). Also probably worth looking at least squares solve for LAPACK on [Netlib](https://www.netlib.org/lapack/lug/node27.html).
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the `(XWX)^-1` matrix by to get the
              covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial
              and Poisson Distribution has `phi = 1`.
@@ -32,13 +32,8 @@ can be tried out.
          the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data 
          structures.
-- [ ] 5. Implement blocked data table for disk and in memory and their mechanisms to be converted to your blocked
-         data matrix structures. Use data.table, tibble, and r-frame as inspirations. There are many references
-         to building data structures for instance you can search for lecture/notes on data table structures from
-         reputable universities. Start by doing simple implementations as in your last package and then modify
-         it with your new knowledge. There is no need to implement select, merge, sort algorithms. For now this
-         blocked data table structure is simply for storing the data so that it can be converted to a blocked
-         model matrix.
+- [ ] 5. ~~Implement blocked data table for disk and in memory and their 
+         mechanisms to be converted to your blocked data matrix structures. Use data.table, tibble, and r-frame as inspirations. There are many references to building data structures for instance you can search for lecture/notes on data table structures from reputable universities. Start by doing simple implementations as in your last package and then modify it with your new knowledge. There is no need to implement select, merge, sort algorithms. For now this blocked data table structure is simply for storing the data so that it can be converted to a blocked model matrix.~~ For now we can leverage R's `data.frames/data.table` structure and Julia's [DataFrames.jl package](http://juliadata.github.io/DataFrames.jl/v0.9/man/formulas/) which allows us to create model matrices. Therefore we can use binary IO of data table blocks to disk and memory. The main issue is whether we can do disk IO concurrently in Julia concurrency is easy but concurrent disk IO is questionable. In R disk concurrency is out of the question any computation in R itself will be inefficient so later on we **must** create a native data table implementation in D  which will allow us to fully parallelize the algorithm both on disk and in memory.
 - [ ] 6. Write and finalise the documentation.
 
 Version 0.2 Post-Processing & Model Search Implementation
@@ -76,4 +71,6 @@ Version 1.0
 Version 1.1
 ----------------------------------------------------------------------------------------------------------------------
 - [ ] 1. Add Constraints to regression, use Generalized QR decomposition.
-- [ ] 2. Add L1, and L Infinity error functions for regression.
+- [ ] 2. Add L1, and L-Infinity error functions for regression.
+- [ ] 3. Include regression constraints both for linear regression and GLM using LAPACK routines for [generalized least squares (MKL)](https://software.intel.com/en-us/mkl-developer-reference-fortran-generalized-linear-least-squares-lls-problems-lapack-driver-routines), see [Netlib](https://www.netlib.org/lapack/lug/node28.html) also.
+- [ ] 4. Add regularization feature.
