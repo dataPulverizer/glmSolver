@@ -26,16 +26,19 @@ can be tried out.
     - [ ] (b) `posv` Cholesky Decomposition Solver.
     - [ ] (c) `sysv` LDL Decomposition Solver.
     - [ ] (d) Could include `gesvxx`, `posvxx`, and `sysvxx` for more precise algorithms outputs and error bounds.
+
   There will be four options for least squares solvers min ||b - Av||_2:
     - [ ] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
     - [ ] (b) `gelsy` Orthogonal Factorization Solver.
     - [ ] (c) `gelss` SVD Solver.
     - [ ] (d) `gelsd` SVD Solver divide & conquer
+
   Matrix inverse algorithms (A^-1) to include
     - [ ] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
     - [ ] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (d) `svds` - My own name use SVD to do generalized inverse.
+
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the `(XWX)^-1` matrix by to get the
              covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial
              and Poisson Distribution has `phi = 1`.
