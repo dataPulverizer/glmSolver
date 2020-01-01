@@ -38,7 +38,6 @@ can be tried out.
     - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
     - [ ] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (d) `svds` - My own name use SVD to do generalized inverse.
-
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the `(XWX)^-1` matrix by to get the
              covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial
              and Poisson Distribution has `phi = 1`.
