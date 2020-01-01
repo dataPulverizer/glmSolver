@@ -185,7 +185,7 @@ void qr_test()
   writeln("QR decomposition R: ", qrOutput.R);
 }
 
-void timed_glm_demo()
+void main()
 {
   /* GLM Demo */
 
@@ -200,7 +200,7 @@ void timed_glm_demo()
   sw.start();
   auto gamma_distrib_log_link = glm(energyX, energyY, 
       new GammaDistribution!double(), new LogLink!double(),
-      new QRSolver!(double)());
+      new GELSSSolver!(double)());
   sw.stop();
   writeln(gamma_distrib_log_link);
   writeln("Time taken: ", sw.peek.total!"msecs");
@@ -228,7 +228,7 @@ void testMatrixVectorConversions()
   writeln("Cast matrix to row vector: ", vec2);
 }
 
-void main()
+void glm_demo()
 {
   /* GLM Demo */
 
@@ -261,7 +261,7 @@ void main()
   auto educationX = readMatrix!double(path ~ "data/educationX.bin");
   auto educationY = readMatrix!double(path ~ "data/educationY.bin");
   
-  if(true)
+  if(false)
   {
   /* Gamma Distribution With Log Link */
   auto gamma_distrib_log_link = glm(energyX, energyY, 
@@ -363,7 +363,7 @@ void main()
   writeln(cauchit_link_binomial_distrib_two_col);
   }
   /* Gamma Distribution With Log Link */
-  //auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
-  //writeln(gamma_distrib_log_link);
+  auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
+  writeln(gamma_distrib_log_link);
 }
 

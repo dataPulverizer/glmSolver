@@ -150,8 +150,8 @@ ColumnVector!T map(alias fun, T)(ColumnVector!T v1, ColumnVector!T v2, ColumnVec
 /* Mapping function for Vectors */
 T[] map(alias fun, T)(T[] v)
 {
-  T[] ret = new T[v.len];
-  for(int i = 0; i < ret.len; ++i)
+  T[] ret = new T[v.length];
+  for(int i = 0; i < ret.length; ++i)
     ret[i] = fun(v[i]);
   return ret;
 }

@@ -30,26 +30,22 @@ can be tried out.
     - [ ] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
     - [ ] (b) `gelsy` Orthogonal Factorization Solver.
     - [ ] (c) `gelss` SVD Solver.
-    - [ ] (d) `gelsd` SVD Solver divide & conquer
-  Matrix inverse algorithms (A^-1) to include
+    - [ ] (d) `gelsd` SVD Solver divide & conquer.
+  Matrix inverse algorithms (A^-1) to include:
     - [ ] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
     - [ ] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (d) `svds` - My own name use SVD to do generalized inverse.
-  - [ ] iii. Create X2 and Dispersion (phi) function which you divide the `(XWX)^-1` matrix by to get the
-             covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial
-             and Poisson Distribution has `phi = 1`.
-  - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification
-            of arrays which could be faster? e.g. *mul!*
-  - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's 
-            Matrix Computations book.
-  - [ ] vi. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If
-            can show better or equal performance to all of these that would be a good start.
+  - [ ] iii. Create X2 and Dispersion (phi) function which you divide the 
+             `(XWX)^-1` matrix by to get the covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
+  - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification of arrays which could be faster? e.g. *mul!*
+  - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
+  - [ ] vi. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
   - [ ] vii. Implement L-BFGS and gradient descent as options in addition to the standard Fisher Matrix/Hessian solver.
-  - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for
-            benchmarking.
+  - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
   - [ ] ix. Do you need a sparse solver? Investigate.
-- [ ] 3. Implement memory and disk blocked matrix structure in Julia (and Rust if applicable) and integrate them 
+- [ ] 3. Implement memory and disk blocked matrix structure in Julia (and
+         Rust if applicable) and integrate them 
          with your current algorithm. Creating a generic interface that could contend with any data structure with
          the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data 

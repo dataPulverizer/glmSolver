@@ -49,15 +49,28 @@ extern(C) @nogc nothrow{
   int LAPACKE_dorgqr(int matrix_layout, int m, int n, int k, double* a, int lda, in double* tau);
   
   /* Linear Equation solvers */
-  /* General Solver Using LU Decomposition */
-  int LAPACKE_sgels(int matrix_layout, char trans, int m, int n, int nrhs, float* a, int lda, float* b, int ldb);
-  int LAPACKE_dgels(int matrix_layout, char trans, int m, int n, int nrhs, double* a, int lda, double* b, int ldb);
+  int LAPACKE_sgesv(int matrix_layout, int n, int nrhs, float *a, int lda, int* ipiv, float* b, int ldb);
+  int LAPACKE_dgesv(int matrix_layout, int n, int nrhs, double *a, int lda, int* ipiv, double* b, int ldb);
   /* Cholesky Decomposition Solver Using (for positive definite matrices) */
   int LAPACKE_sposv(int matrix_layout, char uplo, int n, int nrhs, float * a, int lda, float * b, int ldb);
   int LAPACKE_dposv(int matrix_layout, char uplo, int n, int nrhs, double * a, int lda, double * b, int ldb);
   /* LDL Decomposition Solver (for symmetrix matrices) */
   int LAPACKE_ssysv(int matrix_layout, char uplo, int n, int nrhs, float * a, int lda, int * ipiv, float * b, int ldb);
   int LAPACKE_dsysv(int matrix_layout, char uplo, int n, int nrhs, double * a, int lda, int * ipiv, double * b, int ldb);
+
+  /* Least Squares Solvers */
+  /* General Solver Using LU Decomposition */
+  int LAPACKE_sgels(int matrix_layout, char trans, int m, int n, int nrhs, float* a, int lda, float* b, int ldb);
+  int LAPACKE_dgels(int matrix_layout, char trans, int m, int n, int nrhs, double* a, int lda, double* b, int ldb);
+  /* Orthogonal Solver */
+  int LAPACKE_sgelsy(int matrix_layout, int m, int n, int nrhs, float* a, int lda, float* b, int ldb, int* jpvt, float rcond, int* rank);
+  int LAPACKE_dgelsy(int matrix_layout, int m, int n, int nrhs, double* a, int lda, double* b, int ldb, int* jpvt, double rcond, int* rank);
+  /* Minimum Norm SVD Solver */
+  int LAPACKE_sgelss(int matrix_layout, int m, int n, int nrhs, float* a, int lda, float* b, int ldb, float* s, float rcond, int* rank);
+  int LAPACKE_dgelss(int matrix_layout, int m, int n, int nrhs, double* a, int lda, double* b, int ldb, double* s, double rcond, int* rank);
+  /* Minimum Norm SVD Solver Using Divide & Conquer Algorithms */
+  int LAPACKE_sgelsd(int matrix_layout, int m, int n, int nrhs, float* a, int lda, float* b, int ldb, float* s, float rcond, int* rank);
+  int LAPACKE_dgelsd(int matrix_layout, int m, int n, int nrhs, double* a, int lda, double* b, int ldb, double* s, double rcond, int* rank);
 
   /* Set the number of threads for blas/lapack in openblas */
   void openblas_set_num_threads(int num_threads);
@@ -78,15 +91,29 @@ alias LAPACKE_dorgqr dorgqr;
 alias LAPACKE_dgels dgels;
 
 /* Linear Equation Solvers */
-/* LU Solver */
-alias LAPACKE_dgels gels;
-alias LAPACKE_sgels gels;
+/* LU Decomposition Solver */
+alias LAPACKE_sgesv gesv;
+alias LAPACKE_dgesv gesv;
 /* Cholesky Solver */
 alias LAPACKE_sposv posv;
 alias LAPACKE_dposv posv;
 /* LDL Solver */
 alias LAPACKE_ssysv sysv;
 alias LAPACKE_dsysv sysv;
+
+/* Least Squares Solvers */
+/* LU Solver */
+alias LAPACKE_dgels gels;
+alias LAPACKE_sgels gels;
+/* Orthogonal Factorization Solver */
+alias LAPACKE_sgelsy gelsy;
+alias LAPACKE_dgelsy gelsy;
+/* SVD Solver */
+alias LAPACKE_sgelss gelss;
+alias LAPACKE_dgelss gelss;
+/* SVD Solver Using Divide & Conquer */
+alias LAPACKE_sgelsd gelsd;
+alias LAPACKE_dgelsd gelsd;
 
 /* Norm function */
 double norm(int incr = 1)(double[] x)
@@ -315,7 +342,7 @@ auto qrls2(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
   auto a = X.getData.dup;
   T[] tau = new T[n];
   int lda = layout == CblasColMajor ? m : n;
-  int info = dgels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
+  int info = gels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
   //int info = dgeqrf(layout, m, n, a.ptr, lda, tau.ptr);
   
   assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
@@ -406,12 +433,13 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
      for later calculating covariance matrix
   */
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
-              ref ColumnVector!(T) w, ref ColumnVector!(T) coef);
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef);
   /* Covariance calculation happens at the end of the regression function */
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx);
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
 }
-
+/**************************************** Vanilla Solver ***************************************/
 /*
   Vanilla (default) solver:
   1. Calculates regression weights: W()
@@ -431,29 +459,54 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
-              ref ColumnVector!(T) w, ref ColumnVector!(T) coef)
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
   {
     //writeln("Debug Vanilla Solver: solve()");
-    auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
     coef = _solve(xwx, xwz);
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx)
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     //writeln("Debug Vanilla Solver: cov()");
     return inv(xwx);
   }
 }
+/**************************************** GELS Solver ***************************************/
+/*
+  gels solver for linear regression returns the coefficients and R the 
+  upper triangular R matrix from the QR decomposition
+*/
+auto _gels_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+{
+  int m = cast(int)X.nrow;
+  int n = cast(int)X.ncol;
+  assert(m > n, "Number of rows is less than the number of columns.");
+  auto a = X.getData.dup;
+  T[] tau = new T[n];
+  int lda = layout == CblasColMajor ? m : n;
+  int info = gels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
+  
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function gels");
+  //writeln("tau:", tau);
+  auto Q = matrix(a, [m, n]);
+  auto R = qrToR(Q);
+  auto coef = new ColumnVector!(T)(y.getData[0..n]);
+    
+  return tuple!("coef", "R")(coef, R);
+}
 
 /*
-  QR Solver:
+  GELS QR Solver:
   1. Calculates regression weights as square root of standard weights: W()
   2. Solves using QR decomposition: solve()
   3. Calculates (R'R)^(-1): cov()
 */
-class QRSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
 {
   T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
   {
@@ -465,20 +518,150 @@ class QRSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layou
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref Matrix!(T, layout) x, ref ColumnVector!(T) z, 
-              ref ColumnVector!(T) w, ref ColumnVector!(T) coef)
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
   {
-    auto xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
-    auto coefR = qrls2!(T, layout)(xw, zw);
+    auto coefR = _gels_!(T, layout)(xw, zw);
     coef = coefR.coef;
     R = coefR.R;
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx)
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
+    /* I think an optimization is possible here since R is upper triangular */
     xwx = mult_!(T, layout, CblasTrans)(R, R.dup);
     return inv(xwx);
   }
 }
+/**************************************** GELY Solver ***************************************/
+/*
+  gely orthogonal solver for linear works for rank deficient matrices
+  returns regression coefficient
+*/
+auto _gely_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+{
+  int m = cast(int)X.nrow;
+  int n = cast(int)X.ncol;
+  assert(m > n, "Number of rows is less than the number of columns.");
+  auto a = X.getData.dup;
+  T[] tau = new T[n];
+  int lda = layout == CblasColMajor ? m : n;
 
+  int rank = 0; double rcond = 0; auto jpvt = new int[n];
+  int ldb = m;
+  
+  //int info = gels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
+  int info = gelsy(layout, m, n, 1, a.ptr, lda, y.getData.ptr, 
+              ldb, jpvt.ptr, rcond, &rank);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function gelsy");
+    
+  return new ColumnVector!(T)(y.getData[0..n]);
+}
+/*
+  GELY Solver Using Orthogonal Factorization
+*/
+class GELYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^-(0.5);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+    coef = _gely_!(T, layout)(xw, zw);
+    return;
+  }
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    xwx = mult_!(T, layout, CblasTrans)(xw, xw.dup);
+    return inv(xwx);
+  }
+}
+/**************************************** GELSS Solver ***************************************/
+
+/* Gets the V matrix from the otput of gelss */
+auto getV(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) a)
+{
+  ulong p = a.ncol;
+  ulong n = p * p;
+  auto V = matrix(new T[n], p);
+  for(ulong i = 0; i < p; ++i)
+  {
+    for(ulong j = 0; j < p; ++j)
+    {
+      V[i, j] = a[i, j];
+    }
+  }
+  return V;
+}
+/*
+  Least Squares SVD Solver
+*/
+auto _gelss_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+{
+  int m = cast(int)X.nrow;
+  int n = cast(int)X.ncol;
+  assert(m > n, "Number of rows is less than the number of columns.");
+  auto a = X.getData.dup;
+  T[] tau = new T[n];
+  int lda = layout == CblasColMajor ? m : n;
+
+  int rank = 0; double rcond = 0; int ldb = m; auto s = new T[n];
+  
+  int info = gelss(layout, m, n, 1, a.ptr, lda, y.getData.ptr,
+                ldb, s.ptr, rcond, &rank);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function gelss");
+  
+  auto Vt = getV(matrix(a, [m, n]));
+  auto coef = new ColumnVector!(T)(y.getData[0..n]);
+  /* Inverse of Sigma */
+  auto isigma = columnVector(map!( (T x ) => x^^-1 )(s));
+  /* Inverse transpose of V */
+  auto iVt = sweep!( (x1, x2) => x1 * x2 )(Vt, isigma);
+  
+  return tuple!("coef", "R")(coef, iVt);
+}
+/* GELSS Solver Using SVD Solver */
+class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^-(0.5);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+    auto coefR = _gelss_!(T, layout)(xw, zw);
+    coef = coefR.coef;
+    R = coefR.R;
+  }
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    /* Here R is actually iVt invers transpose of V from SVD of X */
+    return mult_!(T, layout, CblasTrans)(R, R.dup);
+  }
+}
 
