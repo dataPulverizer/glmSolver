@@ -664,4 +664,52 @@ class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     return mult_!(T, layout, CblasTrans)(R, R.dup);
   }
 }
+/**************************************** GELSD Solver ***************************************/
+/*
+  Least Squares SVD Solver as with gelss but uses divide and conquer
+*/
+auto _gelsd_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+{
+  int m = cast(int)X.nrow;
+  int n = cast(int)X.ncol;
+  assert(m > n, "Number of rows is less than the number of columns.");
+  auto a = X.getData.dup;
+  T[] tau = new T[n];
+  int lda = layout == CblasColMajor ? m : n;
 
+  int rank = 0; double rcond = 0; int ldb = m; auto s = new T[n];
+  
+  int info = gelsd(layout, m, n, 1, a.ptr, lda, y.getData.ptr,
+                ldb, s.ptr, rcond, &rank);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function gelsd");
+  /* Returns the coefficients */
+  return new ColumnVector!(T)(y.getData[0..n]);
+}
+/* GELSD Divide and Conquer SVD Solver */
+class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^-(0.5);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
+    coef = _gelsd_!(T, layout)(xw, zw);
+  }
+  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    xwx = mult_!(T, layout, CblasTrans)(xw, xw.dup);
+    return inv(xwx);
+  }
+}

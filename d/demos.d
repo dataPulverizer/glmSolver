@@ -200,7 +200,7 @@ void main()
   sw.start();
   auto gamma_distrib_log_link = glm(energyX, energyY, 
       new GammaDistribution!double(), new LogLink!double(),
-      new GELSSSolver!(double)());
+      new VanillaSolver!(double)());
   sw.stop();
   writeln(gamma_distrib_log_link);
   writeln("Time taken: ", sw.peek.total!"msecs");

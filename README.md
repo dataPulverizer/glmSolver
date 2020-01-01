@@ -27,10 +27,10 @@ can be tried out.
     - [ ] (c) `sysv` LDL Decomposition Solver.
     - [ ] (d) Could include `gesvxx`, `posvxx`, and `sysvxx` for more precise algorithms outputs and error bounds.
   There will be four options for least squares solvers min ||b - Av||_2:
-    - [ ] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
-    - [ ] (b) `gelsy` Orthogonal Factorization Solver.
-    - [ ] (c) `gelss` SVD Solver.
-    - [ ] (d) `gelsd` SVD Solver divide & conquer.
+    - [x] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
+    - [x] (b) `gelsy` Orthogonal Factorization Solver.
+    - [x] (c) `gelss` SVD Solver.
+    - [x] (d) `gelsd` SVD Solver divide & conquer.
   Matrix inverse algorithms (A^-1) to include:
     - [ ] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
     - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
