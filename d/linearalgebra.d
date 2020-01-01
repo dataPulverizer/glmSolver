@@ -47,7 +47,17 @@ extern(C) @nogc nothrow{
   int LAPACKE_dgeqrf(int matrix_layout, int m, int n, double* a, int lda, double* tau);
   int LAPACKE_dtrtrs(int matrix_layout, char uplo, char trans, char diag, int n, int nrhs, in double* a, int lda , double* b, int ldb);
   int LAPACKE_dorgqr(int matrix_layout, int m, int n, int k, double* a, int lda, in double* tau);
-  int LAPACKE_dgels( int matrix_layout, char trans, int m , int n, int nrhs, double* a, int lda, double* b, int ldb);
+  
+  /* Linear Equation solvers */
+  /* General Solver Using LU Decomposition */
+  int LAPACKE_sgels(int matrix_layout, char trans, int m, int n, int nrhs, float* a, int lda, float* b, int ldb);
+  int LAPACKE_dgels(int matrix_layout, char trans, int m, int n, int nrhs, double* a, int lda, double* b, int ldb);
+  /* Cholesky Decomposition Solver Using (for positive definite matrices) */
+  int LAPACKE_sposv(int matrix_layout, char uplo, int n, int nrhs, float * a, int lda, float * b, int ldb);
+  int LAPACKE_dposv(int matrix_layout, char uplo, int n, int nrhs, double * a, int lda, double * b, int ldb);
+  /* LDL Decomposition Solver (for symmetrix matrices) */
+  int LAPACKE_ssysv(int matrix_layout, char uplo, int n, int nrhs, float * a, int lda, int * ipiv, float * b, int ldb);
+  int LAPACKE_dsysv(int matrix_layout, char uplo, int n, int nrhs, double * a, int lda, int * ipiv, double * b, int ldb);
 
   /* Set the number of threads for blas/lapack in openblas */
   void openblas_set_num_threads(int num_threads);
@@ -67,6 +77,16 @@ alias LAPACKE_dtrtrs dtrtrs;
 alias LAPACKE_dorgqr dorgqr;
 alias LAPACKE_dgels dgels;
 
+/* Linear Equation Solvers */
+/* LU Solver */
+alias LAPACKE_dgels gels;
+alias LAPACKE_sgels gels;
+/* Cholesky Solver */
+alias LAPACKE_sposv posv;
+alias LAPACKE_dposv posv;
+/* LDL Solver */
+alias LAPACKE_ssysv sysv;
+alias LAPACKE_dsysv sysv;
 
 /* Norm function */
 double norm(int incr = 1)(double[] x)

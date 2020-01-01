@@ -1,5 +1,13 @@
 # GLMSolver
+
 Solvers for GLM that specialize in calculations on large datasets
+
+This library implements Generalized Linear Models in both Julia and the D programming language. It attempts to create a comprehensive library that can handle larger datasets on multicore machines by dividing the computations to blocks that can be carried out in memory (for speed) and on disk (to conserve computational resources). It offers a variety of solvers that gives the user choice, flexibility and control, and also aims to be a fully comprehensive library in terms of post processing and to be comparable in performance with the best open source GLM solver libraries, comprehensive, convenient and simple to install and use on the Ubuntu (Linux) operating system.
+
+## Prerequisites
+
+* Julia, D, & R programming languages
+* Openblas BLAS/LAPACK library
 
 ## Feature Development
 
@@ -13,7 +21,21 @@ is a small scale implementation of the GLM. It is a prototype only where various
 can be tried out.
 - [x] 2. Do a speed optimization of the GLM prototype created in (1). Things to consider:
   - [x] i.  Matrix decomposition methods e.g. QR etc.
-  - [ ] ii. ~~Optimise QR Speed by taking upper triangular R into account in the solve process.~~ Instead create various solver options using LAPACK linear equation solvers and least squares solvers. A very good website references is [Mark Gates](http://www.icl.utk.edu/~mgates3/) which has a good [routines list](http://www.icl.utk.edu/~mgates3/docs/lapack.html) documentation. It is well worth reading his lecture notes on dense linear algebra [part 1](http://www.icl.utk.edu/~mgates3/files/lect09-dla-2019.pdf) and [part 2](http://www.icl.utk.edu/~mgates3/files/lect10-dla-part2-2019.pdf). Also probably worth looking at least squares solve for LAPACK on [Netlib](https://www.netlib.org/lapack/lug/node27.html).
+  - [ ] ii. ~~Optimise QR Speed by taking upper triangular R into account in the solve process.~~ Instead create various solver options using LAPACK linear equation solvers and least squares solvers. A very good website references is [Mark Gates](http://www.icl.utk.edu/~mgates3/) which has a good [routines list](http://www.icl.utk.edu/~mgates3/docs/lapack.html) documentation. It is well worth reading his lecture notes on dense linear algebra [part 1](http://www.icl.utk.edu/~mgates3/files/lect09-dla-2019.pdf) and [part 2](http://www.icl.utk.edu/~mgates3/files/lect10-dla-part2-2019.pdf). Also probably worth looking at least squares solve for LAPACK on [Netlib](https://www.netlib.org/lapack/lug/node27.html). The details follow, Linear Equation Solver Ax = b (square A):
+    - [ ] (a) `gesv` LU Decomposition Solver.
+    - [ ] (b) `posv` Cholesky Decomposition Solver.
+    - [ ] (c) `sysv` LDL Decomposition Solver.
+    - [ ] (d) Could include `gesvxx`, `posvxx`, and `sysvxx` for more precise algorithms outputs and error bounds.
+  There will be four options for least squares solvers min ||b - Av||_2:
+    - [ ] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
+    - [ ] (b) `gelsy` Orthogonal Factorization Solver.
+    - [ ] (c) `gelss` SVD Solver.
+    - [ ] (d) `gelsd` SVD Solver divide & conquer
+  Matrix inverse algorithms (A^-1) to include
+    - [ ] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
+    - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
+    - [ ] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
+    - [ ] (d) `svds` - My own name use SVD to do generalized inverse.
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the `(XWX)^-1` matrix by to get the
              covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial
              and Poisson Distribution has `phi = 1`.
@@ -74,3 +96,4 @@ Version 1.1
 - [ ] 2. Add L1, and L-Infinity error functions for regression.
 - [ ] 3. Include regression constraints both for linear regression and GLM using LAPACK routines for [generalized least squares (MKL)](https://software.intel.com/en-us/mkl-developer-reference-fortran-generalized-linear-least-squares-lls-problems-lapack-driver-routines), see [Netlib](https://www.netlib.org/lapack/lug/node28.html) also.
 - [ ] 4. Add regularization feature.
+- [ ] 5. Multiple Y variables? LAPACK allows this feature to be implemented to the framework.
