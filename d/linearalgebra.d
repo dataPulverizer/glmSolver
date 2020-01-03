@@ -13,9 +13,9 @@ import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
 //import std.stdio: writeln;
 /*
-** Remove the functions that are no longer needed and remove then in
-** the demo.d script where they are used in the first visual testing
-** phase. The implementation in now very much driven by solver and
+** TODO: Remove the functions that are no longer needed and remove them
+** in the demo.d script where they are used in the first visual testing
+** phase. The implementation is now very much driven by solver and
 ** inverse classes.
 */
 /********************************************* CBLAS & Lapack Imports *********************************************/
