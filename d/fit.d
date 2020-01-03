@@ -17,8 +17,10 @@ import linearalgebra;
 /**************************************** GLM Function ***************************************/
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) x, 
         Matrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
-        AbstractSolver!(T) solver = new VanillaSolver!(T)(), Control!T control = new Control!T(),
-        ColumnVector!T offset = zerosColumn!T(0), ColumnVector!T weights = zerosColumn!T(0))
+        AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
+        AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
+        Control!T control = new Control!T(), ColumnVector!T offset = zerosColumn!T(0),
+        ColumnVector!T weights = zerosColumn!T(0))
 if(isFloatingPoint!T)
 {
   auto init = distrib.init(_y, weights);
@@ -139,7 +141,7 @@ if(isFloatingPoint!T)
   else
     converged = true;
 
-  cov = solver.cov(R, xwx, xw);
+  cov = solver.cov(inverse, R, xwx, xw);
   auto obj = new GLM!(T, layout)(iter, converged, distrib, link, coef, cov, dev, absErr, relErr);
   return obj;
 }

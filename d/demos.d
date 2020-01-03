@@ -185,6 +185,20 @@ void qr_test()
   writeln("QR decomposition R: ", qrOutput.R);
 }
 
+
+void cars_glm_demo()
+{
+  /* Cars Data */
+  string path = "/home/chib/code/GLMPrototype/";
+  auto carsX = readMatrix!double(path ~ "data/carsX.bin");
+  auto carsY = readMatrix!double(path ~ "data/carsY.bin");
+  auto gamma_distrib_log_link_2 = glm(carsX, carsY, 
+    new GammaDistribution!double(), new LogLink!double(),
+    new GESVSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Second Model:\n", gamma_distrib_log_link_2);
+  writeln("Second Model Covariance Matrix:\n", gamma_distrib_log_link_2.cov);
+}
+
 void main()
 {
   /* GLM Demo */
@@ -196,14 +210,15 @@ void main()
 
   /* Gamma Distribution With Log Link */
   import std.datetime.stopwatch : AutoStart, StopWatch;
+  openblas_set_num_threads(1); /* Set the number of cores used to 1 */
   auto sw = StopWatch(AutoStart.no);
   sw.start();
   auto gamma_distrib_log_link = glm(energyX, energyY, 
       new GammaDistribution!double(), new LogLink!double(),
-      new VanillaSolver!(double)());
+      new GESVSolver!(double)(), new GETRIInverse!(double)());
   sw.stop();
   writeln(gamma_distrib_log_link);
-  writeln("Time taken: ", sw.peek.total!"msecs");
+  writeln("Time taken: ", sw.peek.total!"msecs", " msec");
 
   return;
 }

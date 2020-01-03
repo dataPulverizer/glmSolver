@@ -12,6 +12,12 @@ import std.conv: to;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
 //import std.stdio: writeln;
+/*
+** Remove the functions that are no longer needed and remove then in
+** the demo.d script where they are used in the first visual testing
+** phase. The implementation in now very much driven by solver and
+** inverse classes.
+*/
 /********************************************* CBLAS & Lapack Imports *********************************************/
 extern(C) @nogc nothrow{
   void cblas_dgemm(in CBLAS_LAYOUT layout, in CBLAS_TRANSPOSE TransA,
@@ -24,24 +30,34 @@ extern(C) @nogc nothrow{
                    in int lda, in double *X, in int incx, in double beta, 
                    double *Y, in int incy);
   
-  /* See IBM ESSL documentation for more details */
-  int LAPACKE_dgetrf(int matrix_layout, int m,
-  	        int n, double* a, int lda, 
-  	        int* ipiv);
-  int LAPACKE_dgetri(int matrix_layout, int n, 
-  	        double* a, int lda, in int* ipiv);
-  int LAPACKE_dpotrf(int matrix_layout, char uplo, int n,
-            double* a, int lda);
-  int LAPACKE_dpotri(int matrix_layout, char uplo, int n, 
-            double* a, int lda);
+  /* See Intel Math Kernel Library documentation for more details */
+  /* Routines for Calculating Matrix Inverses */
 
-  int LAPACKE_dgetrs(int matrix_layout, char trans, int n , int nrhs, 
-          in double* a, int lda , in int* ipiv, double* b, int ldb);
-  int LAPACKE_dpotrs(int matrix_layout, char uplo, int n, int nrhs, 
-          in double* a, int lda, double* b, int ldb);
+  /* "General" Matrix Inverse Using LU Decomposition */
+  int LAPACKE_sgetrf(int matrix_layout, int m, int n, float * a, int lda, int* ipiv);
+  int LAPACKE_dgetrf(int matrix_layout, int m, int n, double* a, int lda, int* ipiv);
+  int LAPACKE_sgetri(int matrix_layout, int n, float* a, int lda, in int* ipiv);
+  int LAPACKE_dgetri(int matrix_layout, int n, double* a, int lda, in int* ipiv);
+  /* Inverse Using Cholesky Decomposition */
+  int LAPACKE_spotrf(int matrix_layout, char uplo, int n, float* a, int lda);
+  int LAPACKE_dpotrf(int matrix_layout, char uplo, int n, double* a, int lda);
+  int LAPACKE_spotri(int matrix_layout, char uplo, int n, float* a, int lda);
+  int LAPACKE_dpotri(int matrix_layout, char uplo, int n, double* a, int lda);
+  /* Inverse Of Symmetrix Matrix Using LDL Decomposition */
+  int LAPACKE_ssytrf(int layout, char uplo, int n, float * a, int lda, int* ipiv);
+  int LAPACKE_dsytrf(int layout, char uplo, int n, double * a, int lda, int* ipiv);
+  int LAPACKE_ssytri(int layout, char uplo, int n, float* a, int lda, in int* ipiv);
+  int LAPACKE_dsytri(int layout, char uplo, int n, double* a, int lda, in int* ipiv);
+
+  /* Functions used in preliminary solver function */
+  int LAPACKE_dgetrs(int matrix_layout, char trans, int n, int nrhs, in double* a, int lda, in int* ipiv, double* b, int ldb);
+  int LAPACKE_dpotrs(int matrix_layout, char uplo, int n, int nrhs, in double* a, int lda, double* b, int ldb);
 
   /* Norm of an array */
   double cblas_dnrm2(in int n , in double* x , in int incx);
+
+  int LAPACKE_sgesvd(int matrix_layout, char jobu, char jobvt, int m, int n, float* a, 
+                      int lda, float* s, float* u, int ldu, float* vt, int ldvt, float* superb);
   int LAPACKE_dgesvd(int matrix_layout, char jobu, char jobvt, int m, int n, double* a, 
                       int lda, double* s, double* u, int ldu, double* vt, int ldvt, double* superb);
   int LAPACKE_dgeqrf(int matrix_layout, int m, int n, double* a, int lda, double* tau);
@@ -74,6 +90,7 @@ extern(C) @nogc nothrow{
 
   /* Set the number of threads for blas/lapack in openblas */
   void openblas_set_num_threads(int num_threads);
+  //void omp_set_num_threads(int num_threads);
 }
 
 alias cblas_dgemm dgemm;
@@ -81,6 +98,11 @@ alias cblas_dgemv dgemv;
 alias LAPACKE_dgetrf dgetrf;
 alias LAPACKE_dgetri dgetri;
 alias LAPACKE_dgesvd dgesvd;
+
+/* Singular Value Decomposition */
+alias LAPACKE_sgesvd gesvd;
+alias LAPACKE_dgesvd gesvd;
+
 alias LAPACKE_dpotrf dpotrf;
 alias LAPACKE_dpotri dpotri;
 alias LAPACKE_dgetrs dgetrs;
@@ -114,6 +136,22 @@ alias LAPACKE_dgelss gelss;
 /* SVD Solver Using Divide & Conquer */
 alias LAPACKE_sgelsd gelsd;
 alias LAPACKE_dgelsd gelsd;
+
+/* "General" Matrix Inverse Using LU Decomposition */
+alias LAPACKE_sgetrf getrf;
+alias LAPACKE_dgetrf getrf;
+alias LAPACKE_sgetri getri;
+alias LAPACKE_dgetri getri;
+/* Inverse Using Cholesky Decomposition */
+alias LAPACKE_spotrf potrf;
+alias LAPACKE_dpotrf potrf;
+alias LAPACKE_spotri potri;
+alias LAPACKE_dpotri potri;
+/* Inverse Of Symmetrix Matrix Using LDL Decomposition */
+alias LAPACKE_ssytrf sytrf;
+alias LAPACKE_dsytrf sytrf;
+alias LAPACKE_ssytri sytri;
+alias LAPACKE_dsytri sytri;
 
 /* Norm function */
 double norm(int incr = 1)(double[] x)
@@ -262,7 +300,7 @@ Matrix!(T, layout) pinv(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) mat)
   auto u = new double[m*m];
   auto vt = new double[m*m];
   auto superb = new double[m-1];
-  int output = dgesvd(CblasColMajor, 'A', 'A', m, m, a.ptr, m, s.ptr, u.ptr, m, vt.ptr, m, superb.ptr );
+  int output = gesvd(CblasColMajor, 'A', 'A', m, m, a.ptr, m, s.ptr, u.ptr, m, vt.ptr, m, superb.ptr );
   assert(info == 0, "LAPACKE_gesvd error: U" ~ info.stringof ~ 
         " is singular and its inverse could not be computed.");
   /* TODO: 
@@ -418,6 +456,113 @@ void _conventional_solver_2(T, CBLAS_LAYOUT layout = CblasColMajor)
   auto xwz = mult_!(T, layout, CblasTrans)(xw, zw);
   coef = solve(xwx, xwz);
 }
+/**************************************** Matrix Inverse Classes ***************************************/
+/*
+  Classes Of Functions For Calculating Matrix Inverses
+*/
+interface AbstractInverse(T, CBLAS_LAYOUT layout = CblasColMajor)
+{
+  Matrix!(T, layout) inv(Matrix!(T, layout) mat);
+}
+/**************************************** GETRI Inverse ***************************************/
+/* Calculation Of General Matrix Inverse Using LU Decomposition */
+class GETRIInverse(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractInverse!(T, layout)
+{
+  Matrix!(T, layout) inv(Matrix!(T, layout) A)
+  {
+    int p = cast(int)A.nrow;
+	  auto ipiv = new int[p];
+    auto a = A.getData.dup;
+
+    int info = getrf(layout, p, p, a.ptr, p, ipiv.ptr);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function getrf");
+    info = getri(layout, p, a.ptr, p, ipiv.ptr);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function getri");
+    return matrix!(T, layout)(a, p);
+  }
+}
+/**************************************** POTRI Inverse ***************************************/
+/* Calculation Of General Matrix Inverse Using Cholesky Decomposition */
+class POTRIInverse(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractInverse!(T, layout)
+{
+  Matrix!(T, layout) inv(Matrix!(T, layout) A)
+  {
+    int p = cast(int)A.nrow;
+	  auto ipiv = new int[p];
+    auto a = A.getData.dup;
+
+    int info = potrf(layout, 'U', p, a.ptr, p);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function potrf");
+    info = potri(layout, 'U', p, a.ptr, p);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function potri");
+    /* Writing in the lower matrix, dpotri only writes in the upper matrix */
+    for(int j = 0; j < p; ++j)
+    {
+      for(int i = 0; i < j; ++i)
+      {
+        a[p*i + j] = a[p*j + i];
+      }
+    }
+    return matrix!(T, layout)(a, p);
+  }
+}
+/**************************************** SYTRI Inverse ***************************************/
+/* Calculation Of The Inverse Of A Symmetric Matrix Using LDL Decomposition */
+class SYTRIInverse(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractInverse!(T, layout)
+{
+  Matrix!(T, layout) inv(Matrix!(T, layout) A)
+  {
+    int p = cast(int)A.nrow;
+	  auto ipiv = new int[p];
+    auto a = A.getData.dup;
+
+    int info = sytrf(layout, 'U', p, a.ptr, p, ipiv.ptr);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function sytrf");
+    info = sytri(layout, 'U', p, a.ptr, p, ipiv.ptr);
+	  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function sytri");
+    /* Writing in the lower matrix, dpotri only writes in the upper matrix */
+    for(int j = 0; j < p; ++j)
+    {
+      for(int i = 0; i < j; ++i)
+      {
+        a[p*i + j] = a[p*j + i];
+      }
+    }
+    return matrix!(T, layout)(a, p);
+  }
+}
+/**************************************** SVD Inverses ***************************************/
+/* Calculation Of The Inverse Of A Symmetric Matrix Using LDL Decomposition */
+class SVDInverse(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractInverse!(T, layout)
+{
+  Matrix!(T, layout) inv(Matrix!(T, layout) A)
+  {
+    assert(A.nrow == A.ncol, "Number of rows and columns of the matrix are not equal.");
+	  auto a = A.getData.dup;
+    int m = cast(int)A.nrow;
+    int info = 0; 
+    auto s = new double[m];
+    auto u = new double[m*m];
+    auto vt = new double[m*m];
+    auto superb = new double[m-1];
+    int output = gesvd(CblasColMajor, 'A', 'A', m, m, a.ptr, m, s.ptr, u.ptr, m, vt.ptr, m, superb.ptr);
+    assert(info == 0, "gesvd error: U" ~ info.stringof ~ 
+          " is singular and its inverse could not be computed.");
+    /* TODO: 
+    ** Implement in the style of: 
+    **   https://software.intel.com/en-us/articles/implement-pseudoinverse-of-a-matrix-by-intel-mkl
+    */
+    foreach(ref el; s)
+    {
+      if(el > 1E-9)
+        el = 1/el;
+    }
+    auto V = new Matrix!(T, layout)(vt, [m, m]);
+    return mult_!(T, layout, CblasTrans, CblasTrans)(
+      sweep!((double x1, double x2) => x1 * x2)(V, s), 
+      new Matrix!(T, layout)(u, [m, m]));
+  }
+}
 /**************************************** Solver Classes ***************************************/
 /*
   Class of functions for calculating coefficients and covariance
@@ -437,7 +582,7 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
               ref ColumnVector!(T) coef);
   /* Covariance calculation happens at the end of the regression function */
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
 }
 /**************************************** Vanilla Solver ***************************************/
 /*
@@ -445,6 +590,7 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
   1. Calculates regression weights: W()
   2. Solves (X'WX)b = X'Wy for b: solve()
   3. Calculates (X'WX)^(-1): cov()
+  (Now Obsolete)
 */
 class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
 {
@@ -469,12 +615,14 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
     coef = _solve(xwx, xwz);
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     //writeln("Debug Vanilla Solver: cov()");
-    return inv(xwx);
+    //return inv(xwx);
+    return inverse.inv(xwx);
   }
 }
+/**************************************** Least Squares Solvers ***************************************/
 /**************************************** GELS Solver ***************************************/
 /*
   gels solver for linear regression returns the coefficients and R the 
@@ -528,11 +676,12 @@ class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     coef = coefR.coef;
     R = coefR.R;
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     /* I think an optimization is possible here since R is upper triangular */
     xwx = mult_!(T, layout, CblasTrans)(R, R.dup);
-    return inv(xwx);
+    //return inv(xwx);
+    return inverse.inv(xwx);
   }
 }
 /**************************************** GELY Solver ***************************************/
@@ -584,15 +733,16 @@ class GELYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     coef = _gely_!(T, layout)(xw, zw);
     return;
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     xwx = mult_!(T, layout, CblasTrans)(xw, xw.dup);
-    return inv(xwx);
+    //return inv(xwx);
+    return inverse.inv(xwx);
   }
 }
 /**************************************** GELSS Solver ***************************************/
 
-/* Gets the V matrix from the otput of gelss */
+/* Gets the V matrix from the output of gelss */
 auto getV(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) a)
 {
   ulong p = a.ncol;
@@ -658,7 +808,7 @@ class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     coef = coefR.coef;
     R = coefR.R;
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     /* Here R is actually iVt invers transpose of V from SVD of X */
     return mult_!(T, layout, CblasTrans)(R, R.dup);
@@ -707,9 +857,154 @@ class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
     coef = _gelsd_!(T, layout)(xw, zw);
   }
-  Matrix!(T, layout) cov(Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     xwx = mult_!(T, layout, CblasTrans)(xw, xw.dup);
-    return inv(xwx);
+    //return inv(xwx);
+    return inverse.inv(xwx);
   }
 }
+/**************************************** Linear Equation Solvers ***************************************/
+/**************************************** GESV Solver ***************************************/
+/*
+  GESV Solver Using LU Decomposition:
+  1. Calculates regression weights: W()
+  2. Solves (X'WX)b = X'Wy for b: solve()
+  3. Calculates (X'WX)^(-1): cov()
+*/
+auto _gesv_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A, ColumnVector!(T) b)
+{
+  int m = cast(int)A.nrow;
+  int n = cast(int)A.ncol;
+  assert(m == n, "Matrix must be square.");
+  auto a = A.getData.dup; int nrhs = 1;
+  int lda = n; int ldb = n; auto ipiv = new int[n];
+  
+  int info = gesv(layout, n, nrhs, a.ptr, lda, ipiv.ptr, b.getData.ptr, ldb);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function gesv");
+  /* Returns b which is overwritten by coefficients */
+  return b;
+}
+
+class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+    auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    coef = _gesv_(xwx, xwz);
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    //return inv(xwx);
+    return inverse.inv(xwx);
+  }
+}
+/**************************************** POSV Solver ***************************************/
+/*
+  Cholesky Decomposition Solver For Positive Definite Matrices
+*/
+auto _posv_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A, ColumnVector!(T) b)
+{
+  int m = cast(int)A.nrow;
+  int n = cast(int)A.ncol;
+  assert(m == n, "Matrix must be square.");
+  auto a = A.getData.dup; int nrhs = 1; int lda = n;
+  int ldb = n;
+  
+  int info = posv(layout, 'U', n, nrhs, a.ptr, lda, b.getData.ptr, ldb);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function posv");
+  /* Returns b which is overwritten by coefficients */
+  return b;
+}
+
+class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+    auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    coef = _posv_(xwx, xwz);
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    //return inv(xwx);
+    return inverse.inv(xwx);
+  }
+}
+/**************************************** SYSV Solver ***************************************/
+/*
+  LDL Decomposition Solver For Symmetric Indefinite Matrices
+*/
+auto _sysv_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A, ColumnVector!(T) b)
+{
+  int m = cast(int)A.nrow;
+  int n = cast(int)A.ncol;
+  assert(m == n, "Matrix must be square.");
+  auto a = A.getData.dup; int nrhs = 1; int lda = n;
+  int ldb = n; auto ipiv = new int[n];
+  
+  int info = sysv(layout, 'U', n, nrhs, a.ptr, lda, ipiv.ptr, b.getData.ptr, ldb);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ 
+                    " from function sysv");
+  /* Returns b which is overwritten by coefficients */
+  return b;
+}
+
+class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+{
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+    auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    coef = _sysv_(xwx, xwz);
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    //return inv(xwx);
+    return inverse.inv(xwx);
+  }
+}
+
+

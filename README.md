@@ -22,9 +22,9 @@ can be tried out.
 - [x] 2. Do a speed optimization of the GLM prototype created in (1). Things to consider:
   - [x] i.  Matrix decomposition methods e.g. QR etc.
   - [ ] ii. ~~Optimise QR Speed by taking upper triangular R into account in the solve process.~~ Instead create various solver options using LAPACK linear equation solvers and least squares solvers. A very good website references is [Mark Gates](http://www.icl.utk.edu/~mgates3/) which has a good [routines list](http://www.icl.utk.edu/~mgates3/docs/lapack.html) documentation. It is well worth reading his lecture notes on dense linear algebra [part 1](http://www.icl.utk.edu/~mgates3/files/lect09-dla-2019.pdf) and [part 2](http://www.icl.utk.edu/~mgates3/files/lect10-dla-part2-2019.pdf). Also probably worth looking at least squares solve for LAPACK on [Netlib](https://www.netlib.org/lapack/lug/node27.html). The details follow, Linear Equation Solver Ax = b (square A):
-    - [ ] (a) `gesv` LU Decomposition Solver.
-    - [ ] (b) `posv` Cholesky Decomposition Solver.
-    - [ ] (c) `sysv` LDL Decomposition Solver.
+    - [x] (a) `gesv` LU Decomposition Solver.
+    - [x] (b) `posv` Cholesky Decomposition Solver.
+    - [x] (c) `sysv` LDL Decomposition Solver.
     - [ ] (d) Could include `gesvxx`, `posvxx`, and `sysvxx` for more precise algorithms outputs and error bounds.
   There will be four options for least squares solvers min ||b - Av||_2:
     - [x] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
@@ -32,10 +32,13 @@ can be tried out.
     - [x] (c) `gelss` SVD Solver.
     - [x] (d) `gelsd` SVD Solver divide & conquer.
   Matrix inverse algorithms (A^-1) to include:
-    - [ ] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
-    - [ ] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
-    - [ ] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
-    - [ ] (d) `svds` - My own name use SVD to do generalized inverse.
+    - [x] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
+    - [x] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
+    - [x] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
+    - [x] (d) `svds` - My own name use SVD to do generalized inverse.
+  Do this for 
+    - [x] (a) D.
+    - [ ] (b) Julia.
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the 
              `(XWX)^-1` matrix by to get the covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
   - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification of arrays which could be faster? e.g. *mul!*
