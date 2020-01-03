@@ -31,6 +31,7 @@ can be tried out. Link Functions:
   - [x] x.    LogCompliment
   - [x] xi.   LogLog
   - [x] xii.  ComplementaryLogLog
+  
   Distributions:
   - [x] i.    Binomial
   - [x] ii.   Gamma
