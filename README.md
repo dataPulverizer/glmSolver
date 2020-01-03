@@ -18,7 +18,29 @@ Version 0.1 Core Functionality Implementation
 ---------------------------------------------------------------------------------------------------------------------
 - [x] 1. Do a prototype of GLM and finish implementation of family and link functions, include weights and offsets. This
 is a small scale implementation of the GLM. It is a prototype only where various optimizations of small scale regression
-can be tried out.
+can be tried out. Link Functions:
+  - [x] i.    Identity
+  - [x] ii.   Inverse
+  - [x] iii.  Log
+  - [x] iv.   NegativeBinomial
+  - [x] v.    Power
+  - [x] vi.   Logit
+  - [x] vii.  Probit
+  - [x] viii. Cauchit
+  - [x] ix.   OddsPower
+  - [x] x.    LogCompliment
+  - [x] xi.   LogLog
+  - [x] xii.  ComplementaryLogLog
+  Distributions:
+  - [x] i.    Binomial
+  - [x] ii.   Gamma
+  - [x] iii.  Poisson
+  - [x] iv.   Gaussian
+  - [x] v.    InverseGaussian
+  - [x] vi.   NegativeBernoulli
+  - [x] vii.  Power
+  - [ ] viii. Tweedie
+
 - [x] 2. Do a speed optimization of the GLM prototype created in (1). Things to consider:
   - [x] i.  Matrix decomposition methods e.g. QR etc.
   - [ ] ii. ~~Optimise QR Speed by taking upper triangular R into account in the solve process.~~ Instead create various solver options using LAPACK linear equation solvers and least squares solvers. A very good website references is [Mark Gates](http://www.icl.utk.edu/~mgates3/) which has a good [routines list](http://www.icl.utk.edu/~mgates3/docs/lapack.html) documentation. It is well worth reading his lecture notes on dense linear algebra [part 1](http://www.icl.utk.edu/~mgates3/files/lect09-dla-2019.pdf) and [part 2](http://www.icl.utk.edu/~mgates3/files/lect10-dla-part2-2019.pdf). Also probably worth looking at least squares solve for LAPACK on [Netlib](https://www.netlib.org/lapack/lug/node27.html). The details follow, Linear Equation Solver Ax = b (square A):

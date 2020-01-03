@@ -11,6 +11,7 @@ import distributions;
 import std.conv: to;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
+
 //import std.stdio: writeln;
 /*
 ** TODO: Remove the functions that are no longer needed and remove them
