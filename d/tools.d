@@ -113,19 +113,21 @@ if(isFloatingPoint!T)
   bool converged;
   AbstractDistribution!T distrib;
   AbstractLink!T link;
+  T phi;
   T[] coefficients;
   T[] standardError;
   Matrix!(T, L) cov;
   T deviance;
   T absoluteError;
   T relativeError;
-  this(T, CBLAS_LAYOUT L)(ulong _niter, bool _converged, AbstractDistribution!T _distrib, AbstractLink!T _link,
+  this(T, CBLAS_LAYOUT L)(ulong _niter, bool _converged, T _phi, AbstractDistribution!T _distrib, AbstractLink!T _link,
       ColumnVector!T coeff, Matrix!(T, L) _cov, T _deviance, T absErr, T relErr)
   {
     niter = _niter;
     converged = _converged;
     distrib = _distrib;
     link = _link;
+    phi = _phi;
     coefficients = coeff.getData;
     standardError = new T[_cov.nrow];
     for(ulong i = 0; i < _cov.nrow; ++i)
@@ -141,7 +143,8 @@ if(isFloatingPoint!T)
     rep ~= "Info(Converged = " ~ to!string(converged) ~ ", Iterations = " ~ to!string(niter) ~ ")\n";
     rep ~= "Error(Absolute Error = " ~ to!string(absoluteError) ~
             ", Relative Error = " ~ to!string(relativeError) ~ 
-            ", Deviance = " ~ to!string(deviance) ~ ")\n";
+            ", Deviance = " ~ to!string(deviance) ~ ", phi = " ~ 
+            to!string(phi) ~ ")\n";
     rep ~= "Coefficients:\n" ~ to!string(coefficients) ~ "\n";
     rep ~= "StandardError:\n" ~ to!string(standardError) ~ "\n";
     return rep;

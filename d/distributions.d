@@ -332,3 +332,12 @@ class GammaDistribution(T) : AbstractDistribution!(T)
   }
 }
 
+/* Evaluates if the dispersion should be 1 */
+template unitDispsersion(T, Distrib)
+{
+  static if(is(Distrib == PoissonDistribution!(T)) | is(Distrib == BinomialDistribution!(T)))
+    enum bool unitDispsersion = true;
+  else
+    enum bool unitDispsersion = false;
+}
+

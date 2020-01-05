@@ -140,9 +140,17 @@ if(isFloatingPoint!T)
     converged = false;
   else
     converged = true;
-
+  
   cov = solver.cov(inverse, R, xwx, xw);
-  auto obj = new GLM!(T, layout)(iter, converged, distrib, link, coef, cov, dev, absErr, relErr);
+  T phi = 1;
+  if(!unitDispsersion!(T, typeof(distrib)))
+  {
+    phi = dev/(n - p);
+    //inplace alteration of covariance matrix
+    imap!( (T x) => x*phi)(cov);
+  }
+
+  auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
   return obj;
 }
 /********************************************************************************/

@@ -66,8 +66,7 @@ can be tried out. Link Functions:
     - [x] (a) D.
     - [x] (b) Julia.
   The Names used `GETRIInverse`, `POTRIInverse`, `SYTRFInverse`, `GESVDInverse`, `GESVSolver`, `POSVSolver`, `SYSVSolver`, `GELSSolver`, `GELSYSolver`, `GELSSSolver`, `GELSDSolver`.
-  - [ ] iii. Create X2 and Dispersion (phi) function which you divide the 
-             `(XWX)^-1` matrix by to get the covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`. Include weights simplication for when `(link.deta_dmu(mu, eta)^^2) == distrib.variance(mu)^-1` for various link/distribution combinations.
+  - [ ] iii. Create X2 - [ ] and Dispersion (phi) - [x] function which you divide the `(XWX)^-1` matrix by to get the covariance matrix - [x]. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`. Include weights simplication for when `(link.deta_dmu(mu, eta)^^2) == distrib.variance(mu)^-1` for various link/distribution combinations. Maybe leave X2 till when you do the full model diagnotics section?
   - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification of arrays which could be faster? e.g. *mul!*
   - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
   - [ ] vi. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
