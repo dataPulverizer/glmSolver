@@ -59,6 +59,7 @@ GLM Class Object
 struct GLM{T <: AbstractFloat}
   link::AbstractLink
   distrib::AbstractDistribution
+  phi::T
   coefficients::Array{T, 1}
   covariance::Array{T, 2}
   iterations::Int64
@@ -68,12 +69,12 @@ struct GLM{T <: AbstractFloat}
   deviance::T
   residuals::Array{T, 1}
   function GLM(link::AbstractLink, distrib::AbstractDistribution, 
-                coefficients::Array{T, 1}, 
+                phi::T, coefficients::Array{T, 1}, 
                 covariance::Array{T, 2}, iterations::Int64,
                 relativeError::T, absoluteError::T,
                 converged::Bool, deviance::T,
                 residuals::Array{T, 1}) where {T <: AbstractFloat}
-  return new{T}(link, distrib, coefficients, covariance, iterations, 
+  return new{T}(link, distrib, phi, coefficients, covariance, iterations, 
               relativeError, absoluteError, converged, deviance, residuals)
   end
 end
@@ -87,7 +88,7 @@ function Base.show(io::IO, ::MIME"text/plain", model::GLM{T}) where {T <: Abstra
           "Iterations = " * string(model.iterations) * ")\n"
   rep *= "Error(AbsoluteError = " * string(model.absoluteError) *
          ", RelativeError = " * string(model.relativeError) * 
-         ", Deviance = " * string(model.deviance) * ")\n"
+         ", Deviance = " * string(model.deviance) * ", phi = " * string(model.phi) * ")\n"
   rep *= "Coefficients:\n" * string(model.coefficients) * "\n"
   standardError = [model.covariance[i, i]^0.5 for i in 1:size(model.covariance)[1]]
   rep *= "Standard Error:\n" * string(standardError) * "\n"

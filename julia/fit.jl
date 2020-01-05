@@ -172,7 +172,13 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
     converged = true
   end
 
-  return GLM(link, distrib, coef, Cov, iter, relErr, absErr, converged, 
+  phi::T = T(1)
+  if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
+    phi = dev/(n - p)
+    Cov .*= phi
+  end
+
+  return GLM(link, distrib, phi, coef, Cov, iter, relErr, absErr, converged, 
              dev, residuals)
 end
 
