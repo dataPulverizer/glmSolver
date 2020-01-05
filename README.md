@@ -38,9 +38,10 @@ can be tried out. Link Functions:
   - [x] iii.  Poisson
   - [x] iv.   Gaussian
   - [x] v.    InverseGaussian
-  - [x] vi.   NegativeBernoulli
+  - [x] vi.   NegativeBinomial
   - [x] vii.  Power
   - [ ] viii. Tweedie
+  - [ ] ix.   Ordinal Regression
 
   For Julia - [x] & D - [x]
 
@@ -54,7 +55,7 @@ can be tried out. Link Functions:
   There will be four options for least squares solvers min ||b - Av||_2:
     - [x] (a) `gels` Least squares solver using QR decomposition, requires *full rank* matrix A.
     - [x] (b) `gelsy` Orthogonal Factorization Solver.
-    - [x] (c) `gelss` SVD Solver.
+    - [x] (c) `gelss` SVD Solver. (D Only)
     - [x] (d) `gelsd` SVD Solver divide & conquer.
   Matrix inverse algorithms (A^-1) to include:
     - [x] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
@@ -63,7 +64,7 @@ can be tried out. Link Functions:
     - [x] (d) `svds` - My own name use SVD to do generalized inverse.
   Do this for 
     - [x] (a) D.
-    - [ ] (b) Julia.
+    - [x] (b) Julia.
   - [ ] iii. Create X2 and Dispersion (phi) function which you divide the 
              `(XWX)^-1` matrix by to get the covariance matrix. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
   - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification of arrays which could be faster? e.g. *mul!*

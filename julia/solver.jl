@@ -83,6 +83,8 @@ struct GETRIInverse <: AbstractInverse end
 struct POTRIInverse <: AbstractInverse end
 #= SYTRF Matrix Inverse =#
 struct SYTRFInverse <: AbstractInverse end
+#= GESVD Matrix Inverse =#
+struct GESVDInverse <: AbstractInverse end
 
 #=
   Inverse of a square matrix using the GETRI function
@@ -106,7 +108,7 @@ import LinearAlgebra.LAPACK.potri!
 #=
   # Examples:
   x = rand(100, 10);
-  x = transpose(x) * x
+  x = x' * x
   sum(abs.(Base.inv(x) .- inv(POTRIInverse(), x)))
 =#
 function inv(::POTRIInverse, A::Array{T, 2}) where {T <: AbstractFloat}
@@ -130,7 +132,7 @@ import LinearAlgebra.LAPACK.sytrf!# (uplo, A) -> (A, ipiv, info)
 #=
   # Examples:
   x = rand(100, 10);
-  x = transpose(x) * x
+  x = x' * x
   sum(abs.(Base.inv(x) .- inv(SYTRFInverse(), x)))
 =#
 function inv(::SYTRFInverse, A::Array{T, 2}) where {T <: AbstractFloat}
@@ -146,6 +148,34 @@ function inv(::SYTRFInverse, A::Array{T, 2}) where {T <: AbstractFloat}
   return A
 end
 
+#= Generalized Matrix Inverse By SVD  =#
+import LinearAlgebra.LAPACK.gesvd! # (jobu, jobvt, A) -> (U, S, VT)
+
+#= Matrix Vector Sweep Function =#
+function multSweep(xw::Array{T, 2}, w::Array{T, 1})::Array{T, 2} where {T <: AbstractFloat}
+  n, p = size(xw)
+  for j in 1:p
+    for i in 1:n
+      xw[i, j] = xw[i, j] * w[i]
+    end
+  end
+  return xw
+end
+
+#=
+  # Examples:
+  x = rand(100, 10);
+  x = x' * x
+  sum(abs.(Base.inv(x) .- inv(GESVDInverse(), x)))
+=#
+function inv(::GESVDInverse, A::Array{T, 2}) where {T <: AbstractFloat}
+  p, _ = size(A)
+  A = copy(A)
+  U, S, Vt = gesvd!('A', 'A', A)
+  S = [el > 1E-9 ? 1/el : el for el in S]
+  return multSweep(Vt, S)' * U'
+end
+
 #============================== Linear Equation Solvers ==============================#
 #= For Ax = b =#
 #==============================  GESV Solver ==============================#
@@ -153,24 +183,26 @@ end
 function calcXWX(xwx::Array{T, 2}, x::Array{T, 2}, w::Array{T, 1}, z::Array{T, 1}) where {T <: AbstractFloat}
   n, p = size(x)
   xw = copy(x)
-  for j in 1:p
-    for i in 1:n
-      xw[i, j] = xw[i, j] * w[i]
-    end
-  end
-  xwx = transpose(xw) * x
-  xwz = transpose(xw) * z
+  #for j in 1:p
+  #  for i in 1:n
+  #    xw[i, j] = xw[i, j] * w[i]
+  #  end
+  #end
+  xw = multSweep(xw, w)
+  xwx = xw' * x
+  xwz = xw' * z
   return xwx, xwz
 end
 
 function calcXW(xwx::Array{T, 2}, x::Array{T, 2}, w::Array{T, 1}, z::Array{T, 1}) where {T <: AbstractFloat}
   n, p = size(x)
   xw = copy(x)
-  for j in 1:p
-    for i in 1:n
-      xw[i, j] = xw[i, j] * w[i]
-    end
-  end
+  # for j in 1:p
+  #   for i in 1:n
+  #     xw[i, j] = xw[i, j] * w[i]
+  #   end
+  # end
+  xw = multSweep(xw, w)
   return xw, z .* w
 end
 
@@ -261,7 +293,7 @@ function solve!(::GELSSolver, R::Array{T, 2},
   return (R, xwx, xw, x, z, w, coef)
 end
 function cov(::GELSSolver, invType::AbstractInverse, R::Array{T, 2}, xwx::Array{T, 2}, xw::Array{T, 2})::Array{T, 2} where {T <: AbstractFloat}
-  xwx = transpose(R) * R
+  xwx = R' * R
   return inv(invType, xwx)
 end
 #==============================  GELSY Solver ==============================#
@@ -278,11 +310,11 @@ function solve!(::GELSYSolver, R::Array{T, 2},
   coef::Array{T, 1}) where {T <: AbstractFloat}
   _, p = size(x); rcond = T(0)
   xw, zw = calcXW(xwx, x, w, z)
-  coef, rnk = gelsy!(xw, zw, rcond)
+  coef, rnk = gelsy!(copy(xw), zw, rcond)
   return (R, xwx, xw, x, z, w, coef)
 end
 function cov(::GELSYSolver, invType::AbstractInverse, R::Array{T, 2}, xwx::Array{T, 2}, xw::Array{T, 2})::Array{T, 2} where {T <: AbstractFloat}
-  xwx = transpose(xw) * xw
+  xwx = xw' * xw
   return inv(invType, xwx)
 end
 #==============================  GELSD Solver ==============================#
@@ -302,11 +334,11 @@ function solve!(::GELSDSolver, R::Array{T, 2},
   _, p = size(x)
   rcond::T = T(0)
   xw, zw = calcXW(xwx, x, w, z)
-  coef, _ = gelsd!(xw, zw, rcond)
+  coef, _ = gelsd!(copy(xw), zw, rcond)
   return (R, xwx, xw, x, z, w, coef)
 end
 function cov(::GELSDSolver, invType::AbstractInverse, R::Array{T, 2}, xwx::Array{T, 2}, xw::Array{T, 2})::Array{T, 2} where {T <: AbstractFloat}
-  xwx = transpose(xw) * xw
+  xwx = xw' * xw
   return inv(invType, xwx)
 end
 
