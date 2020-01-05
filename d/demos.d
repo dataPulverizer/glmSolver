@@ -199,7 +199,7 @@ void cars_glm_demo()
   writeln("Second Model Covariance Matrix:\n", gamma_distrib_log_link_2.cov);
 }
 
-void main()
+void timed_demo()
 {
   /* GLM Demo */
 
@@ -214,7 +214,7 @@ void main()
   auto sw = StopWatch(AutoStart.no);
   sw.start();
   auto gamma_distrib_log_link = glm(energyX, energyY, 
-      new GammaDistribution!double(), new LogLink!double(),
+      new GammaDistribution!(double)(), new LogLink!(double)(),
       new GESVSolver!(double)(), new GETRIInverse!(double)());
   sw.stop();
   writeln(gamma_distrib_log_link);
@@ -243,7 +243,7 @@ void testMatrixVectorConversions()
   writeln("Cast matrix to row vector: ", vec2);
 }
 
-void glm_demo()
+void main() /* glm_demo */
 {
   /* GLM Demo */
 
@@ -276,109 +276,156 @@ void glm_demo()
   auto educationX = readMatrix!double(path ~ "data/educationX.bin");
   auto educationY = readMatrix!double(path ~ "data/educationY.bin");
   
+  if(true)
+  {
+    /* Gamma Distribution With Log Link */
+    auto gamma_distrib_log_link = glm(energyX, energyY, 
+        new GammaDistribution!double(), new LogLink!double());
+    writeln(gamma_distrib_log_link);
+    
+    /* Gamma Distribution With Inverse Link */
+    auto gamma_distrib_inv_link = glm(energyX, energyY,
+        new GammaDistribution!double(), new InverseLink!double());
+    writeln(gamma_distrib_inv_link);
+    
+    /* Gamma Distribution With Identity Link */
+    auto gamma_distrib_identity_link = glm(energyX, energyY,
+        new GammaDistribution!double(), new IdentityLink!double());
+    writeln(gamma_distrib_identity_link);
+    
+    /* Gamma Distribution With Power Link */
+    auto gamma_distrib_power_link = glm(energyX, energyY,
+        new GammaDistribution!double(), new PowerLink!double(0));
+    writeln(gamma_distrib_power_link);
+    auto gamma_distrib_power_link_2 = glm(carsX, carsY,
+        new GammaDistribution!double(), new PowerLink!double(1/3));
+    writeln(gamma_distrib_power_link_2);
+    
+    /* Gamma Distribution With Negative Binomial Link */
+    auto gamma_distrib_negative_binomial_link_1 = glm(carsX, carsY,
+        new GammaDistribution!double(), new NegativeBinomialLink!double(1.0));
+    writeln(gamma_distrib_negative_binomial_link_1);
+    auto gamma_distrib_negative_binomial_link_2 = glm(energyX, energyY,
+        new GammaDistribution!double(), new NegativeBinomialLink!double(2.0));
+    writeln(gamma_distrib_negative_binomial_link_2);
+    /* Binomial Distribution With Logit Link Function */
+    auto binomial_logit_link = glm(creditX, creditY, 
+        new BinomialDistribution!double(), new LogitLink!double());
+    writeln(binomial_logit_link);
+    openblas_set_num_threads(1); /* Set the number of BLAS threads */
+    /* Binomial Distribution With Probit Link Function */
+    auto binomial_probit_link = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new ProbitLink!double());
+    writeln(binomial_probit_link);
+    /* Binomial Distribution With CauchitLink Function */
+    auto binomial_cauchit_link = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new CauchitLink!double());
+    writeln(binomial_cauchit_link);
+    /* Binomial Distribution With OddsPowerLink Function */
+    auto binomial_oddspower_link = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new OddsPowerLink!double(2));
+    writeln(binomial_oddspower_link);
+  
+    auto binomial_distrib_odds_power_link_1 = glm(creditX, creditY, 
+        new BinomialDistribution!double(), new OddsPowerLink!double(0.0));
+    writeln(binomial_distrib_odds_power_link_1);
+    auto binomial_distrib_odds_power_link_2 = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new OddsPowerLink!double(2.0));
+    writeln(binomial_distrib_odds_power_link_2);
+    
+    auto bernoulli_logcomplementary = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new LogComplementLink!double());
+    writeln(bernoulli_logcomplementary);
+    auto bernoulli_loglog = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new LogLogLink!double());
+    writeln(bernoulli_loglog);
+    auto bernoulli_complementaryloglog = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new ComplementaryLogLogLink!double());
+    writeln(bernoulli_complementaryloglog);
+    
+    /* LogLink With Gaussian Distribution */
+    auto log_link_gaussian_distrib = glm(energyX, energyY, 
+        new GaussianDistribution!double(), new LogLink!double());
+    writeln(log_link_gaussian_distrib);
+    
+    auto log_link_gamma_distribution = glm(energyX, energyY, 
+        new GammaDistribution!double(), new LogLink!double());
+    writeln(log_link_gamma_distribution);
+    auto log_link_inversegaussian_distribution = glm(energyX, energyY, 
+        new InverseGaussianDistribution!double(), new LogLink!double());
+    writeln(log_link_inversegaussian_distribution);
+    auto log_link_poisson_distribution = glm(energyX, energyY, 
+        new PoissonDistribution!double(), new LogLink!double());
+    writeln(log_link_poisson_distribution);
+    auto logit_link_bernoulli_distrib = glm(creditX, creditY, 
+        new BinomialDistribution!double(), new LogitLink!double());
+    writeln(logit_link_bernoulli_distrib);
+    auto log_link_negative_bernoulli_distrib = glm(energyX, energyY, 
+        new NegativeBinomialDistribution!double(0.5), new LogLink!double());
+    writeln(log_link_negative_bernoulli_distrib);
+    auto log_link_power_distrib = glm(carsX, carsY, 
+        new PowerDistribution!double(0.5), new PowerLink!double(0.5));
+    writeln(log_link_power_distrib);
+    auto logit_link_binomial_distribution = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new LogLink!double());
+    writeln(logit_link_binomial_distribution);
+    auto cauchit_link_binomial_distribution = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new CauchitLink!double());
+    writeln(cauchit_link_binomial_distribution);
+  }
   if(false)
   {
-  /* Gamma Distribution With Log Link */
-  auto gamma_distrib_log_link = glm(energyX, energyY, 
-      new GammaDistribution!double(), new LogLink!double());
-  writeln(gamma_distrib_log_link);
-  
-  /* Gamma Distribution With Inverse Link */
-  auto gamma_distrib_inv_link = glm(energyX, energyY,
-      new GammaDistribution!double(), new InverseLink!double());
-  writeln(gamma_distrib_inv_link);
-  
-  /* Gamma Distribution With Identity Link */
-  auto gamma_distrib_identity_link = glm(energyX, energyY,
-      new GammaDistribution!double(), new IdentityLink!double());
-  writeln(gamma_distrib_identity_link);
-  
-  /* Gamma Distribution With Power Link */
-  auto gamma_distrib_power_link = glm(energyX, energyY,
-      new GammaDistribution!double(), new PowerLink!double(0));
-  writeln(gamma_distrib_power_link);
-  auto gamma_distrib_power_link_2 = glm(carsX, carsY,
-      new GammaDistribution!double(), new PowerLink!double(1/3));
-  writeln(gamma_distrib_power_link_2);
-
-  /* Gamma Distribution With Negative Binomial Link */
-  auto gamma_distrib_negative_binomial_link_1 = glm(carsX, carsY,
-      new GammaDistribution!double(), new NegativeBinomialLink!double(1.0));
-  writeln(gamma_distrib_negative_binomial_link_1);
-  auto gamma_distrib_negative_binomial_link_2 = glm(energyX, energyY,
-      new GammaDistribution!double(), new NegativeBinomialLink!double(2.0));
-  writeln(gamma_distrib_negative_binomial_link_2);
-  /* Binomial Distribution With Logit Link Function */
-  auto binomial_logit_link = glm(creditX, creditY, 
-      new BinomialDistribution!double(), new LogitLink!double());
-  writeln(binomial_logit_link);
-  openblas_set_num_threads(1); /* Set the number of BLAS threads */
-  /* Binomial Distribution With Probit Link Function */
-  auto binomial_probit_link = glm(gpaX, gpaY, 
-      new BinomialDistribution!double(), new ProbitLink!double());
-  writeln(binomial_probit_link);
-  /* Binomial Distribution With CauchitLink Function */
-  auto binomial_cauchit_link = glm(gpaX, gpaY, 
-      new BinomialDistribution!double(), new CauchitLink!double());
-  writeln(binomial_cauchit_link);
-  /* Binomial Distribution With OddsPowerLink Function */
-  auto binomial_oddspower_link = glm(creditX, creditY, 
-      new BinomialDistribution!double(), new OddsPowerLink!double(1));
-  writeln(binomial_oddspower_link);
-  /* Binomial Distribution With LogComplementLink Function */
-  auto binomial_logcomplement_link = glm(gpaX, gpaY, 
-      new BinomialDistribution!double(), new LogComplementLink!double());
-  writeln(binomial_logcomplement_link);
-  /* Binomial Distribution With LogLogLink Function */
-  auto binomial_loglog_link = glm(gpaX, gpaY, 
-      new BinomialDistribution!double(), new LogLogLink!double());
-  writeln(binomial_loglog_link);
-  /* Binomial Distribution With ComplementaryLogLogLink Function */
-  auto binomial_complementaryloglog_link = glm(gpaX, gpaY, 
-      new BinomialDistribution!double(), new ComplementaryLogLogLink!double());
-  writeln(binomial_complementaryloglog_link);
-
-  /* Now Test Different Distributions With Specific Link Functions */
-  /* LogLink With Gaussian Distribution */
-  auto log_link_gaussian_distrib = glm(energyX, energyY, 
-      new GaussianDistribution!double(), new LogLink!double());
-  writeln(log_link_gaussian_distrib);
-  /* LogLink With Gamma Distribution */
-  auto log_link_gamma_distrib = glm(energyX, energyY, 
-      new GammaDistribution!double(), new LogLink!double());
-  writeln(log_link_gamma_distrib);
-  /* LogLink With InverseGaussian Distribution */
-  auto log_link_inversegaussian_distrib = glm(energyX, energyY, 
-      new InverseGaussianDistribution!double(), new LogLink!double());
-  writeln(log_link_inversegaussian_distrib);
-  /* LogLink With Poisson Distribution */
-  auto log_link_poisson_distrib = glm(energyX, energyY, 
-      new PoissonDistribution!double(), new LogLink!double());
-  writeln(log_link_poisson_distrib);
-
-  /* LogitLink With Binomial Distribution */
-  auto logit_link_binomial_distrib = glm(creditX, creditY, 
-      new BinomialDistribution!double(), new LogitLink!double());
-  writeln(logit_link_binomial_distrib);
-  /* LogitLink With Negative Binomial Distribution */
-  auto logit_link_negative_binomial_distrib = glm(energyX, energyY, 
-      new NegativeBinomialDistribution!double(0.5), new LogLink!double());
-  writeln(logit_link_negative_binomial_distrib);
-  /* LogLink With Power Distribution */
-  auto log_link_power_distrib = glm(carsX, carsY, 
-      new PowerDistribution!double(0.5), new PowerLink!double(0.5));
-  writeln(log_link_power_distrib);
-  /* Logit Link With Binomial Distribution - Works fine */
-  auto logit_link_binomial_distrib_two_col = glm(educationX, educationY, 
-      new BinomialDistribution!double(), new LogitLink!double());
-  writeln(logit_link_binomial_distrib_two_col);
-  /* Cauchit Link With Binomial Distribution */
-  auto cauchit_link_binomial_distrib_two_col = glm(educationX, educationY, 
-      new BinomialDistribution!double(), new CauchitLink!double());
-  writeln(cauchit_link_binomial_distrib_two_col);
+      /* Binomial Distribution With LogComplementLink Function */
+    auto binomial_logcomplement_link = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new LogComplementLink!double());
+    writeln(binomial_logcomplement_link);
+    /* Binomial Distribution With LogLogLink Function */
+    auto binomial_loglog_link = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new LogLogLink!double());
+    writeln(binomial_loglog_link);
+    /* Binomial Distribution With ComplementaryLogLogLink Function */
+    auto binomial_complementaryloglog_link = glm(gpaX, gpaY, 
+        new BinomialDistribution!double(), new ComplementaryLogLogLink!double());
+    writeln(binomial_complementaryloglog_link);
+    
+    /* Now Test Different Distributions With Specific Link Functions */
+    /* LogLink With Gaussian Distribution */
+    auto log_link_gaussian_distrib = glm(energyX, energyY, 
+        new GaussianDistribution!double(), new LogLink!double());
+    writeln(log_link_gaussian_distrib);
+    /* LogLink With Gamma Distribution */
+    auto log_link_gamma_distrib = glm(energyX, energyY, 
+        new GammaDistribution!double(), new LogLink!double());
+    writeln(log_link_gamma_distrib);
+    /* LogLink With InverseGaussian Distribution */
+    auto log_link_inversegaussian_distrib = glm(energyX, energyY, 
+        new InverseGaussianDistribution!double(), new LogLink!double());
+    writeln(log_link_inversegaussian_distrib);
+    /* LogLink With Poisson Distribution */
+    auto log_link_poisson_distrib = glm(energyX, energyY, 
+        new PoissonDistribution!double(), new LogLink!double());
+    writeln(log_link_poisson_distrib);
+    
+    /* LogitLink With Binomial Distribution */
+    auto logit_link_binomial_distrib = glm(creditX, creditY, 
+        new BinomialDistribution!double(), new LogitLink!double());
+    writeln(logit_link_binomial_distrib);
+    /* LogitLink With Negative Binomial Distribution */
+    auto logit_link_negative_binomial_distrib = glm(energyX, energyY, 
+        new NegativeBinomialDistribution!double(0.5), new LogLink!double());
+    writeln(logit_link_negative_binomial_distrib);
+    /* LogLink With Power Distribution */
+    auto log_link_power_distrib = glm(carsX, carsY, 
+        new PowerDistribution!double(0.5), new PowerLink!double(0.5));
+    writeln(log_link_power_distrib);
+    /* Logit Link With Binomial Distribution - Works fine */
+    auto logit_link_binomial_distrib_two_col = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new LogitLink!double());
+    writeln(logit_link_binomial_distrib_two_col);
+    /* Cauchit Link With Binomial Distribution */
+    auto cauchit_link_binomial_distrib_two_col = glm(educationX, educationY, 
+        new BinomialDistribution!double(), new CauchitLink!double());
+    writeln(cauchit_link_binomial_distrib_two_col);
   }
-  /* Gamma Distribution With Log Link */
-  auto gamma_distrib_log_link = glm(energyX, energyY, new GammaDistribution!double(), new LogLink!double());
-  writeln(gamma_distrib_log_link);
 }
 

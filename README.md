@@ -31,7 +31,7 @@ can be tried out. Link Functions:
   - [x] x.    LogCompliment
   - [x] xi.   LogLog
   - [x] xii.  ComplementaryLogLog
-  
+
   Distributions:
   - [x] i.    Binomial
   - [x] ii.   Gamma
@@ -41,6 +41,8 @@ can be tried out. Link Functions:
   - [x] vi.   NegativeBernoulli
   - [x] vii.  Power
   - [ ] viii. Tweedie
+
+  For Julia - [x] & D - [x]
 
 - [x] 2. Do a speed optimization of the GLM prototype created in (1). Things to consider:
   - [x] i.  Matrix decomposition methods e.g. QR etc.
@@ -57,7 +59,7 @@ can be tried out. Link Functions:
   Matrix inverse algorithms (A^-1) to include:
     - [x] (a) `getri` LU Decomposition Inverse, `getrf` precursor.
     - [x] (b) `potri` Cholesky Decomposition Inverse, `potrf` precursor.
-    - [x] (c) `sytri` LU Decomposition Inverse, `getrf` precursor.
+    - [x] (c) `sytri` LU Decomposition Inverse, `sytrf` precursor.
     - [x] (d) `svds` - My own name use SVD to do generalized inverse.
   Do this for 
     - [x] (a) D.
@@ -70,10 +72,8 @@ can be tried out. Link Functions:
   - [ ] vii. Implement L-BFGS and gradient descent as options in addition to the standard Fisher Matrix/Hessian solver.
   - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
   - [ ] ix. Do you need a sparse solver? Investigate.
-- [ ] 3. Implement memory and disk blocked matrix structure in Julia (and
-         Rust if applicable) and integrate them 
-         with your current algorithm. Creating a generic interface that could contend with any data structure with
-         the right methods returning the right types to the function(s).
+- [ ] 3. Implement memory and disk blocked matrix structure in Julia & D and
+         integrate them with your current algorithm. Creating a generic interface that could contend with any data structure with the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data 
          structures.
 - [ ] 5. ~~Implement blocked data table for disk and in memory and their 
@@ -92,7 +92,7 @@ Version 0.2 Post-Processing & Model Search Implementation
       searches, forward, backward, both directional searches.
 - [ ] 6. Write/finalize the documentation.
 - [ ] 7. Do you need to worry about which operating system this will be run on? Theoretically, if it is written
-         in Julia, Rust and R it could be that you won't need to worry about this.
+         in Julia, D and R it could be that you won't need to worry about this.
 
 Version 1.0 Alpha
 ----------------------------------------------------------------------------------------------------------------------

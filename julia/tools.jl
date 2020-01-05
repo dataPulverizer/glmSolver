@@ -9,13 +9,13 @@ return (deta_dmu(link, mu, eta) .* (y .- mu)) .+ eta
 end
 
 # Weights for the VanillaSolver
-@inline function W(::Type{<: VanillaSolver}, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
-  return ( (deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-1)
+@inline function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-1)
 end
 
 # Weights for the QRSolver
-@inline function W(::Type{<: QRSolver}, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
-  return ( (deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
+@inline function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
 end
 
 # The actual weights function used

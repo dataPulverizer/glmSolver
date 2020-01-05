@@ -690,7 +690,7 @@ class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   gely orthogonal solver for linear works for rank deficient matrices
   returns regression coefficient
 */
-auto _gely_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
+auto _gelsy_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
 {
   int m = cast(int)X.nrow;
   int n = cast(int)X.ncol;
@@ -699,7 +699,7 @@ auto _gely_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
   T[] tau = new T[n];
   int lda = layout == CblasColMajor ? m : n;
 
-  int rank = 0; double rcond = 0; auto jpvt = new int[n];
+  int rank = 0; T rcond = 0; auto jpvt = new int[n];
   int ldb = m;
   
   //int info = gels(layout, 'N', m, n, 1, a.ptr, lda, y.getData.ptr, m);
@@ -711,9 +711,9 @@ auto _gely_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T) y)
   return new ColumnVector!(T)(y.getData[0..n]);
 }
 /*
-  GELY Solver Using Orthogonal Factorization
+  GELSY Solver Using Orthogonal Factorization
 */
-class GELYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
+class GELSYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, layout)
 {
   T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
   {
@@ -731,7 +731,7 @@ class GELYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   {
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
-    coef = _gely_!(T, layout)(xw, zw);
+    coef = _gelsy_!(T, layout)(xw, zw);
     return;
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
