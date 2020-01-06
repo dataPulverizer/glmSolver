@@ -1,8 +1,10 @@
 /*
   Convenience functions for vectors and matrices
 */
-module arraycommon;
-import arrays;
+module glmsolverd.common;
+
+import glmsolverd.arrays;
+
 import std.random;
 import std.algorithm: fold;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;

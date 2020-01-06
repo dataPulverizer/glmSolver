@@ -1,18 +1,19 @@
 /*
   GLM Function(s)
 */
-module fit;
+module glmsolverd.fit;
 
 import std.conv: to;
 import std.stdio : writeln;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
-import arrays;
-import arraycommon;
-import apply;
-import link;
-import distributions;
-import tools;
-import linearalgebra;
+
+import glmsolverd.arrays;
+import glmsolverd.common;
+import glmsolverd.apply;
+import glmsolverd.link;
+import glmsolverd.distributions;
+import glmsolverd.tools;
+import glmsolverd.linearalgebra;
 
 /**************************************** GLM Function ***************************************/
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) x, 

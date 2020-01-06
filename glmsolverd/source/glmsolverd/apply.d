@@ -2,9 +2,10 @@
   Functions for applying functions over vectors and matrices
 */
 
-module apply;
-import arrays;
-import arraycommon;
+module glmsolverd.apply;
+
+import glmsolverd.arrays;
+import glmsolverd.common;
 
 /********************************************* Sweep & Map *********************************************/
 enum Axis{

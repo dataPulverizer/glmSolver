@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"Chibisi Chima-Okereke"
+	],
+	"copyright": "Copyright © 2020, Chibisi Chima-Okereke",
+	"homepage": "https://github.com/dataPulverizer/glmsolver",
+	"description": "Generalized Linear Model Solvers For Larger Datasets",
+	"license": "MIT",
+	"name": "glmsolverd",
+	"libs": ["openblas", "pthread", "lapacke", "lapack", "m"],
+	"targetType": "executable"
+}

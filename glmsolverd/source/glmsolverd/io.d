@@ -1,8 +1,9 @@
 /*
   Module for binary IO
 */
-module io;
-import arrays;
+module glmsolverd.io;
+
+import glmsolverd.arrays;
 import std.stdio: File;
 
 /**************************************** BINARY IO ***************************************/

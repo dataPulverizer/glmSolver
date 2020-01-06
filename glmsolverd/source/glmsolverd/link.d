@@ -1,11 +1,12 @@
 /*
   This file is for the glm link functions
 */
-module link;
+module glmsolverd.link;
 
-import arrays;
-import arraycommon;
-import apply;
+import glmsolverd.arrays;
+import glmsolverd.common;
+import glmsolverd.apply;
+
 import std.conv: to;
 import std.algorithm: min, max, fold;
 import std.math: atan, exp, expm1, log, modf, fabs, fmax, fmin, cos, tan, PI;

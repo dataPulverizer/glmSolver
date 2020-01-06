@@ -1,12 +1,12 @@
 /*
   Error functions, control object and GLM Object
 */
-module tools;
+module glmsolverd.tools;
 
-import arrays;
-import apply;
-import link;
-import distributions;
+import glmsolverd.arrays;
+import glmsolverd.apply;
+import glmsolverd.link;
+import glmsolverd.distributions;
 
 import std.math: fabs;
 import std.conv: to;

@@ -1,10 +1,12 @@
 /*
   Module for distributions for GLM
 */
-module distributions;
-import apply;
-import arrays;
-import arraycommon;
+module glmsolverd.distributions;
+
+import glmsolverd.apply;
+import glmsolverd.arrays;
+import glmsolverd.common;
+
 import std.conv: to;
 import std.math: log;
 import std.typecons: Tuple, tuple;

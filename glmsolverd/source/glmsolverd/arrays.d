@@ -2,7 +2,8 @@
   This module contains implementations for vectors and matrices
 */
 
-module arrays;
+module glmsolverd.arrays;
+
 import std.conv: to;
 import std.format: format;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;

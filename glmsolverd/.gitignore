@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/glmsolverd
+glmsolverd.so
+glmsolverd.dylib
+glmsolverd.dll
+glmsolverd.a
+glmsolverd.lib
+glmsolverd-test-*
+*.exe
+*.o
+*.obj
+*.lst

@@ -1,19 +1,22 @@
-import arrays;
-import arraycommon;
-import apply;
-import link;
-import distributions;
-import tools;
-import linearalgebra;
-import io;
-import fit;
+module demos.demo;
+
+import glmsolverd.arrays;
+import glmsolverd.common;
+import glmsolverd.apply;
+import glmsolverd.link;
+import glmsolverd.distributions;
+import glmsolverd.tools;
+import glmsolverd.linearalgebra;
+import glmsolverd.io;
+import glmsolverd.fit;
+
 import std.conv: to;
 import std.stdio : writeln;
 import std.file: remove;
 
 /* ldc2 demos.d arrays.d arraycommon.d apply.d link.d distributions.d tools.d linearalgebra.d io.d fit.d -O2 -L-lopenblas -L-lpthread -L-llapacke -L-llapack -L-lm && ./demos */
 
-void demo1()
+void old_demo() /* Maybe remove this function in time */
 {
   double[] dat1 = [0.5258874319129798,    0.1748310792322596, 0.32741218855864074, 
                    0.27457761265628555,   0.5884570435236942, 0.24725859282363394, 
@@ -172,7 +175,8 @@ void demo1()
   return;
 }
 
-void qr_test()
+/* Will no longer be needed going forward - delete */
+void qr_demo()
 {
   auto X = matrix!double([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
         1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
@@ -185,7 +189,7 @@ void qr_test()
   writeln("QR decomposition R: ", qrOutput.R);
 }
 
-
+/* Small demo may not be needed later */
 void cars_glm_demo()
 {
   /* Cars Data */
@@ -199,6 +203,7 @@ void cars_glm_demo()
   writeln("Second Model Covariance Matrix:\n", gamma_distrib_log_link_2.cov);
 }
 
+/* Timed demo for basic observational benchmarking */
 void timed_demo()
 {
   /* GLM Demo */
@@ -223,6 +228,7 @@ void timed_demo()
   return;
 }
 
+/* Testing single column matrix to column vector casts */
 void testMatrixVectorConversions()
 {
   auto mat1 = createRandomMatrix(10, 1); // Column Matrix
@@ -243,7 +249,8 @@ void testMatrixVectorConversions()
   writeln("Cast matrix to row vector: ", vec2);
 }
 
-void main() /* glm_demo */
+/* Function contains many GLM examples */
+void glm_demo()
 {
   /* GLM Demo */
 

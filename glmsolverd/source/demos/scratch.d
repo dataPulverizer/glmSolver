@@ -1,13 +1,17 @@
+module demos.scratch;
+
 import std.conv: to;
 import std.stdio : writeln;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
-import arrays;
-import arraycommon;
-import apply;
-import link;
-import distributions;
-import tools;
-import linearalgebra;
+
+import glmsolverd.arrays;
+import glmsolverd.common;
+import glmsolverd.apply;
+import glmsolverd.link;
+import glmsolverd.distributions;
+import glmsolverd.tools;
+import glmsolverd.linearalgebra;
+
 import std.stdio : writeln;
 import std.typecons: Tuple, tuple;
 
@@ -85,10 +89,8 @@ auto _gelss_test_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T)
   return tuple!("coef", "iVt")(coef, iVt);
 }
 
-
-
 /* ldc2 scratch.d arrays.d arraycommon.d apply.d link.d distributions.d tools.d linearalgebra.d io.d fit.d -O2 -L-lopenblas -L-lpthread -L-llapacke -L-llapack -L-lm && ./scratch */
-void main()
+void inverse_test() /* delete this */
 {
   auto X1 = createRandomMatrix!(double)(20, 5);
   auto y1 = createRandomColumnVector!(double)(20);

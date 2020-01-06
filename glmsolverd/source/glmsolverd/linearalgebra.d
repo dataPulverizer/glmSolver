@@ -1,13 +1,14 @@
 /*
   Linear Algebra Module
 */
-module linearalgebra;
+module glmsolverd.linearalgebra;
 
-import arrays;
-import arraycommon;
-import apply;
-import link;
-import distributions;
+import glmsolverd.arrays;
+import glmsolverd.common;
+import glmsolverd.apply;
+import glmsolverd.link;
+import glmsolverd.distributions;
+
 import std.conv: to;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
