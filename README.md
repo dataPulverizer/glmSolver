@@ -1,6 +1,6 @@
 # GLMSolver
 
-Solvers for GLM that specialize in calculations on large datasets
+Solvers for GLM that specialize in calculations on larger datasets that do not fit into memory and minimizing the memory required to run algorithms and using multicores.
 
 This library implements Generalized Linear Models in both Julia and the D programming language. It attempts to create a comprehensive library that can handle larger datasets on multicore machines by dividing the computations to blocks that can be carried out in memory (for speed) and on disk (to conserve computational resources). It offers a variety of solvers that gives the user choice, flexibility and control, and also aims to be a fully comprehensive library in terms of post processing and to be comparable in performance with the best open source GLM solver libraries, comprehensive, convenient and simple to install and use on the Ubuntu (Linux) operating system.
 
@@ -66,17 +66,17 @@ can be tried out. Link Functions:
     - [x] (a) D.
     - [x] (b) Julia.
   The Names used `GETRIInverse`, `POTRIInverse`, `SYTRFInverse`, `GESVDInverse`, `GESVSolver`, `POSVSolver`, `SYSVSolver`, `GELSSolver`, `GELSYSolver`, `GELSSSolver`, `GELSDSolver`.
-  - [ ] iii. Create X2 - [?] and Dispersion (phi) - **Done** function which you divide the `(XWX)^-1` matrix by to get the covariance matrix - **Done**. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`. Include weights simplication for when `(link.deta_dmu(mu, eta)^^2) == distrib.variance(mu)^-1` for various link/distribution combinations. Maybe leave X2 till when you do the full model diagnotics section?
-  - [ ] iv. Look at Julia's GLM implementation, they use matrix multiplications using inplace modification of arrays which could be faster? e.g. *mul!*
+  - [x] iii. Dispersion (phi) - **Done** function which you divide the `(XWX)^-1` matrix by to get the covariance matrix - **Done**. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
+  - [ ] iv. Include weights simplication for when `(link.deta_dmu(mu, eta)^2) == distrib.variance(mu)^-1` for various link/distribution combinations.
   - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
-  - [ ] vi. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
-  - [ ] vii. Implement L-BFGS and gradient descent as options in addition to the standard Fisher Matrix/Hessian solver.
-  - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
-  - [ ] ix. Do you need a sparse solver? Investigate.
+  - [ ] vi. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
+  - [ ] vii. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
+  - [ ] viii. Implement L-BFGS and gradient descent as options in addition to the standard Fisher Matrix/Hessian solver.
+  - [ ] ix.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
+  - [ ] x. Do you need a sparse solver? Investigate.
 - [ ] 3. Implement memory and disk blocked matrix structure in Julia & D and
          integrate them with your current algorithm. Creating a generic interface that could contend with any data structure with the right methods returning the right types to the function(s).
-- [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data 
-         structures.
+- [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data structures.
 - [ ] 5. ~~Implement blocked data table for disk and in memory and their 
          mechanisms to be converted to your blocked data matrix structures. Use data.table, tibble, and r-frame as inspirations. There are many references to building data structures for instance you can search for lecture/notes on data table structures from reputable universities. Start by doing simple implementations as in your last package and then modify it with your new knowledge. There is no need to implement select, merge, sort algorithms. For now this blocked data table structure is simply for storing the data so that it can be converted to a blocked model matrix.~~ For now we can leverage R's `data.frames/data.table` structure and Julia's [DataFrames.jl package](http://juliadata.github.io/DataFrames.jl/v0.9/man/formulas/) which allows us to create model matrices. Therefore we can use binary IO of data table blocks to disk and memory using the current data table constructs in both languages. The main issue is whether we can do disk IO concurrently; in Julia concurrency is straightforward but concurrent disk IO is unknown. In R any computation or IO in R itself will be inefficient so later on we **must** create a native data table implementation in D which will hopefully allow us to fully parallelize the algorithm both on disk and in memory.
 - [ ] 6. Write and finalise the documentation.
@@ -86,7 +86,7 @@ Version 0.2 Post-Processing & Model Search Implementation
 
 - [ ] 1. Create summary function complete with pretty printing for the model output.
 - [ ] 2. Create diagnostic plotting functions for the model outputs.
-- [ ] 3. Measures/Tests such as AIC/BIC, R^2, and so on.
+- [ ] 3. Measures/Tests such as X2, Significance tests, AIC/BIC, R^2, and so on.
 - [ ] 4. Model comparisons, T-tests, ANOVA and so forth. Refer to the model comparisons package in 
          R for inspiration.
 - [ ] 5. Write an *update()* function for modifying the model and write a *step()* function for model
