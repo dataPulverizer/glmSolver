@@ -59,8 +59,6 @@ Matrix!(T, layout) readMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(string fil
   return new Matrix!(T, layout)(mat, [cast(ulong)dim[0], cast(ulong)dim[1]]);
 }
 
-alias BlockMatrix(T, CBLAS_LAYOUT layout) = Matrix!(T, layout)[];
-
 import std.file: dirEntries, SpanMode;
 BlockMatrix!(T, layout) readBlockMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(string path)
 {

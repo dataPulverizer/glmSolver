@@ -448,3 +448,6 @@ if(isNumeric!T)
   }
 }
 
+/* Aliases */
+alias BlockMatrix(T, CBLAS_LAYOUT layout) = Matrix!(T, layout)[];
+alias BlockVector(T) = Vector!(T)[];

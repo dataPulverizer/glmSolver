@@ -44,6 +44,7 @@ interface AbstractLink(T)
   ColumnVector!T linkinv(ColumnVector!T eta);
   T linkinv(T eta);
   string toString();
+  /* Block Matrix Overloads */
 }
 class LogLink(T): AbstractLink!T
 {
