@@ -6,7 +6,7 @@ setMethod("%+%", signature = c("character", "ANY"),
 setMethod("%+%", signature = c("ANY", "character"),
             definition = function(x, y)paste0(x, y))
 
-home = "/home/chib/code/GLMPrototype/"
+home = "/home/chib/code/glmSolver/"
 rCodeFolder = home %+% "r/"
 dataFolder = home %+% "data/"
 

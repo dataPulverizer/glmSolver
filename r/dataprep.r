@@ -2,7 +2,7 @@
 require(MASS)
 require(data.table)
 
-source("/home/chib/code/GLMPrototype/r/paths.r")
+source("/home/chib/code/glmSolver/r/paths.r")
 source(rCodeFolder %+% "binaryIO.r")
 
 # Read and prep data then write out
@@ -28,6 +28,11 @@ write2DArray(dataFolder %+% "energyX.bin", energyX, 8)
 write2DArray(dataFolder %+% "energyY.bin", energyY, 8)
 # write1DArray(dataFolder %+% "energyY.bin", as.vector(energyY), 8)
 
+# Write Matrix as block
+write2DBlock(dataFolder %+% "energyBlockX", matrixToBlock(energyX, 1000))
+write2DBlock(dataFolder %+% "energyBlockY", matrixToBlock(energyY, 1000))
+
+
 # Motor insurance data
 insuranceX = model.matrix(~ Kilometres + Zone + Bonus + Make + Insured, data = faraway::motorins)
 insuranceY = model.matrix(~ Claims - 1, data = faraway::motorins)
@@ -39,6 +44,10 @@ fwrite(data.table(insuranceY), file = paste0(dataFolder, "insuranceY.csv"), sep 
 write2DArray(dataFolder %+% "insuranceX.bin", insuranceX, 8)
 write2DArray(dataFolder %+% "insuranceY.bin", insuranceY, 8)
 # write1DArray(dataFolder %+% "insuranceY.bin", as.vector(insuranceY), 8)
+
+# Write Matrix as block
+write2DBlock(dataFolder %+% "insuranceBlockX", matrixToBlock(insuranceX, 20))
+write2DBlock(dataFolder %+% "insuranceBlockY", matrixToBlock(insuranceY, 20))
 
 # Credit fraud data
 cfData = fread(paste0(dataFolder, "creditfraudModelFrame.csv"))
@@ -55,6 +64,10 @@ fwrite(data.table(creditY), file = paste0(dataFolder, "creditY.csv"), sep = ",",
 write2DArray(dataFolder %+% "creditX.bin", creditX, 8)
 write2DArray(dataFolder %+% "creditY.bin", creditY, 8)
 # write1DArray(dataFolder %+% "creditY.bin", as.vector(creditY), 8)
+
+# Write Matrix as block
+write2DBlock(dataFolder %+% "creditBlockX", matrixToBlock(creditX, 200))
+write2DBlock(dataFolder %+% "creditBlockY", matrixToBlock(creditY, 200))
 
 # GPA data
 gpaData = fread(paste0(dataFolder, "gpaData.csv"))

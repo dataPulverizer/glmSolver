@@ -249,6 +249,21 @@ void testMatrixVectorConversions()
   writeln("Cast matrix to row vector: ", vec2);
 }
 
+/* Read Block Demo */
+import std.file : rmdirRecurse;
+//import core.thread;
+void blockMatrixTest()
+{
+    string path = "/home/chib/code/glmSolver/data/testData/";
+    auto blockMatrix = readBlockMatrix!(double)(path);
+    writeln("Block Matrix: ", blockMatrix);
+    string writePath = "/home/chib/code/glmSolver/data/writeBlockTest/";
+    writeBlockMatrix!(double)(blockMatrix, writePath);
+    //Thread.sleep(seconds(5));
+    rmdirRecurse(writePath);
+}
+
+
 /* Function contains many GLM examples */
 void glm_demo()
 {

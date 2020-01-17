@@ -151,7 +151,7 @@ vectorToBlock = function(vec, nBlocks)
   return(ret)
 }
 # Function to create random block matrix
-createBlockMatrix = function(nrows = 100, ncols = 10, nBlocks = 7)
+createRandomBlockMatrix = function(nrows = 100, ncols = 10, nBlocks = 7)
 {
   ret = vector(length = nBlocks, mode = "list")
   for(i in 0:(nBlocks - 1))
@@ -249,13 +249,20 @@ deleteBlockFiles = function(path)
 # Function to test block IO
 testBlockIO = function(nrows = 100, ncols = 10, nBlocks = 7, path = "tmp")
 {
-  blockMatrix = createBlockMatrix(nrows, ncols, nBlocks)
+  blockMatrix = createRandomBlockMatrix(nrows, ncols, nBlocks)
   write2DBlock(path, blockMatrix)
   ret = read2DBlock(path, "numeric")
   isSame = sum(sapply(1:nBlocks, function(i){sum(abs(blockMatrix[[i]] - ret[[i]]))})) == 0
   cat(paste0("The read block matrices are the same as those written? ", isSame, "\n"))
   # Sys.sleep(5)
   deleteBlockFiles(path)
+  return(invisible())
+}
+
+writeTestData = function()
+{
+  blockMatrix = createRandomBlockMatrix(nrows = 1000, ncols = 5, nBlocks = 8)
+  write2DBlock("/home/chib/code/glmSolver/data/testData", blockMatrix)
   return(invisible())
 }
 
