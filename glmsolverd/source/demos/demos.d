@@ -252,7 +252,7 @@ void testMatrixVectorConversions()
 /* Read Block Demo */
 import std.file : rmdirRecurse;
 //import core.thread;
-void blockMatrixTest()
+void blockMatrixDemo()
 {
     string path = "/home/chib/code/glmSolver/data/testData/";
     auto blockMatrix = readBlockMatrix!(double)(path);
@@ -263,6 +263,18 @@ void blockMatrixTest()
     rmdirRecurse(writePath);
 }
 
+/* Testing link functions with block vectors */
+void linkBlockDemo()
+{
+  auto link = new LogLink!(double)();
+  auto mu = createRandomBlockColumnVector(20, 5);
+  auto eta = createRandomBlockColumnVector(20, 5);
+  writeln("Original mu:\n", mu);
+  writeln("Original eta:\n", eta);
+  writeln("Link function test on block vectors:\n", link.linkfun(mu));
+  writeln("Inverse link function test on block vectors:\n", link.linkinv(eta));
+  writeln("deta_dmu function test on block vectors:\n", link.deta_dmu(mu, eta));
+}
 
 /* Function contains many GLM examples */
 void glm_demo()

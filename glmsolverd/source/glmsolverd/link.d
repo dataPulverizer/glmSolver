@@ -45,7 +45,43 @@ interface AbstractLink(T)
   T linkinv(T eta);
   string toString();
   /* Block Matrix Overloads */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu);
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta);
 }
+
+//mixin template BlockMethodGubbings(T)
+//{
+//  /* Block Matrix Overloads for now use for loops rather than maps */
+//  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+//  {
+//    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+//    ulong n = mu.length;
+//    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+//    for(ulong i = 0; i < n; ++i)
+//      ret[i] = linkfun(mu[i]);
+//    return ret;
+//  }
+//  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+//  {
+//    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+//    ulong n = mu.length;
+//    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+//    for(ulong i = 0; i < n; ++i)
+//      ret[i] = deta_dmu(mu[i], eta[i]);
+//    return ret;
+//  }
+//  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+//  {
+//    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+//    ulong n = eta.length;
+//    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+//    for(ulong i = 0; i < n; ++i)
+//      ret[i] = linkinv(eta[i]);
+//    return ret;
+//  }
+//}
+
 class LogLink(T): AbstractLink!T
 {
   T linkfun(T mu)
@@ -75,6 +111,34 @@ class LogLink(T): AbstractLink!T
   override string toString()
   {
     return "LogLink";
+  }
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class IdentityLink(T) : AbstractLink!(T)
@@ -107,6 +171,36 @@ class IdentityLink(T) : AbstractLink!(T)
   {
     return "IdentityLink";
   }
+  /* Block Matrix Overloads */
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class InverseLink(T) : AbstractLink!(T)
 {
@@ -137,6 +231,35 @@ class InverseLink(T) : AbstractLink!(T)
   override string toString()
   {
     return "InverseLink";
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class LogitLink(T) : AbstractLink!(T)
@@ -170,6 +293,35 @@ class LogitLink(T) : AbstractLink!(T)
   {
     return "LogitLink";
   }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class CauchitLink(T) : AbstractLink!(T)
 {
@@ -201,6 +353,35 @@ class CauchitLink(T) : AbstractLink!(T)
   {
     return "CauchitLink";
   }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class ProbitLink(T) : AbstractLink!(T)
 {
@@ -231,6 +412,35 @@ class ProbitLink(T) : AbstractLink!(T)
   override string toString()
   {
     return "ProbitLink";
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class PowerLink(T) : AbstractLink!(T)
@@ -269,6 +479,35 @@ class PowerLink(T) : AbstractLink!(T)
   {
     alpha = _alpha;
     logl = new LogLink!T();
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class OddsPowerLink(T) : AbstractLink!(T)
@@ -316,6 +555,35 @@ class OddsPowerLink(T) : AbstractLink!(T)
     alpha = _alpha;
     logit = new LogitLink!(T)();
   }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class LogComplementLink(T) : AbstractLink!(T)
 {
@@ -346,6 +614,35 @@ class LogComplementLink(T) : AbstractLink!(T)
   override string toString()
   {
     return "LogComplementLink";
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class LogLogLink(T) : AbstractLink!(T)
@@ -378,6 +675,35 @@ class LogLogLink(T) : AbstractLink!(T)
   {
     return "LogLogLink";
   }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class ComplementaryLogLogLink(T) : AbstractLink!(T)
 {
@@ -408,6 +734,35 @@ class ComplementaryLogLogLink(T) : AbstractLink!(T)
   override string toString()
   {
     return "LogLogLink";
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 class NegativeBinomialLink(T) : AbstractLink!(T)
@@ -446,6 +801,35 @@ class NegativeBinomialLink(T) : AbstractLink!(T)
   this(T _alpha)
   {
     alpha = _alpha;
+  }
+  //mixin BlockMethodGubbings!(T);
+  /* Block Matrix Overloads for now use for loops rather than maps */
+  BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => linkfun(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    //return map!((ColumnVector!(T) m, ColumnVector!(T) x) => deta_dmu(m, x))(mu, eta);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta)
+  {
+    //return map!( (ColumnVector!(T) x) => linkinv(x) )(eta);
+    ulong n = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
   }
 }
 

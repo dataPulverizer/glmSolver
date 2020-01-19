@@ -448,6 +448,24 @@ if(isNumeric!T)
   }
 }
 
+/* Fill ColumnVector!(T) */
+ColumnVector!(T) fillColumnVector(T)(T x, ulong n)
+{
+  T[] data = new T[n];
+  for(ulong i = 0; i < n; ++i)
+  {
+    data[i] = x;
+  }
+  return new ColumnVector!(T)(data);
+}
+ColumnVector!(T) zerosColumnVector(T)(ulong n)
+{
+  return new ColumnVector!(T)(new T[n]);
+}
+
 /* Aliases */
-alias BlockMatrix(T, CBLAS_LAYOUT layout) = Matrix!(T, layout)[];
+alias BlockMatrix(T, CBLAS_LAYOUT layout = CblasColMajor) = Matrix!(T, layout)[];
 alias BlockVector(T) = Vector!(T)[];
+alias BlockColumnVector(T) = ColumnVector!(T)[];
+alias BlockRowVector(T) = RowVector!(T)[];
+

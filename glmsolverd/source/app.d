@@ -2,6 +2,7 @@ import demos.demo;
 
 void main()
 {
-  timed_demo();
-  //blockMatrixTest();
+  //timed_demo();
+  //blockMatrixDemo();
+  linkBlockDemo();
 }

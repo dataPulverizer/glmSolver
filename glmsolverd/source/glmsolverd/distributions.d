@@ -24,17 +24,69 @@ abstract class AbstractDistribution(T)
     auto y = cast(ColumnVector!(T))_y;
     return tuple(y, y.dup, wts);
   }
+  
   ColumnVector!T variance(ColumnVector!T mu);
   T variance(T mu);
   ColumnVector!T devianceResiduals(ColumnVector!T mu, ColumnVector!T y);
   T devianceResiduals(T mu, T y);
   T devianceResiduals(T mu, T y, T wts);
   ColumnVector!T devianceResiduals(ColumnVector!T mu, ColumnVector!T y, ColumnVector!T wts);
+  
+  /* Block Matrix/Vector Overloads */
+  initType!(BlockColumnVector!(T)) init(T)(BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    //BlockColumnVector!(T) y = map!( (Matrix!(T) x) => cast(ColumnVector!(T))x )(_y);
+    //BlockColumnVector!(T) mu = map!( (ColumnVector!(T) x) => x.dup )(_y);
+    ulong n = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[n];
+    BlockColumnVector!(T) mu = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+    {
+      y[i] = cast(ColumnVector!(T))_y[i];
+      mu[i] = (cast(ColumnVector!(T))_y[i]).dup;
+    }
+    return tuple(y, mu, wts);
+  }
+  BlockColumnVector!(T) variance(BlockColumnVector!(T) mu);
+  BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y);
+  BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts);
 }
 T y_log_y(T)(T y, T x)
 {
   //pragma(inline, true);
   return y != 0 ? y * log(y/x) : 0;
+}
+template BlockDistributionGubbings()
+{
+  enum string BlockDistributionGubbings = q{
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
+};
 }
 class BinomialDistribution(T) : AbstractDistribution!(T)
 {
@@ -93,6 +145,96 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
   {
     return "BinomialDistribution";
   }
+  initType!(BlockColumnVector!T) init(BlockMatrix!T _y, BlockColumnVector!T wts)
+  {
+    BlockColumnVector!(T) y; BlockColumnVector!T mu;
+    bool hasWeights = wts.length > 0;
+    if(_y[0].ncol == 1)
+    {
+      //y = map!( (Matrix!(T) x) => cast(ColumnVector!(T))x )(y);
+      y = new ColumnVector!(T)[_y.length];
+      for(ulong i = 0; i < y.length; ++i)
+        y[i] = cast(ColumnVector!(T))_y[i];
+      if(wts.length == 0)
+      {
+        //mu = map!( (T x) => (x + cast(T)0.5)/2 )(y);
+        //mu = map!((ColumnVector!(T) m) => map!( (T x) => (x + cast(T)0.5)/2 )(m))(y);
+        mu = new ColumnVector!(T)[y.length];
+        for(ulong i = 0; i < y.length; ++i)
+        {
+          mu[i] = y[i].dup; ulong b = y[i].length;
+          for(ulong j = 0; j < b; ++j)
+          {
+            mu[i][j] = (mu[i][j] + cast(T)0.5)/2;
+          }
+        }
+      }else{
+        //mu = map!( (T x, T w) => (w * x + cast(T)0.5)/(w + 1) )(y, wts);
+        //mu = map!((ColumnVector!(T) m, ColumnVector!(T) w) => map!( (T x, T ws) => (ws * x + cast(T)0.5)/(ws + 1) )(m, w))(y, wts);
+        y = new ColumnVector!(T)[_y.length];
+        mu = new ColumnVector!(T)[_y.length];
+        //wts = new ColumnVector!(T)[_y.length];
+        for(ulong i = 0; i < _y.length; ++i)
+        {
+          ulong b = _y[i].ncol;
+          y[i] = cast(ColumnVector!(T))_y[i];
+          mu[i] = y[i].dup;
+          for(ulong j = 0; j < b; ++j)
+          {
+            mu[i][j] = (wts[i][j] * mu[i][j] + cast(T)0.5)/(wts[i][j] + 1);
+          }
+        }
+      }
+    }else if(_y[0].ncol > 1)
+    {
+      ulong n = _y.length;
+      y = new ColumnVector!(T)[n];
+      mu = new ColumnVector!(T)[n];
+      wts = new ColumnVector!(T)[n];
+      for(ulong i = 0; i < n; ++i)
+      {
+        ulong m = _y[i].nrow;
+        y[i] = zerosColumnVector!(T)(m);
+        mu[i] = zerosColumnVector!(T)(m);
+        wts[i] = zerosColumnVector!(T)(m);
+        for(ulong j = 0; j < m; ++j)
+        {
+          wts[i][j] = _y[i][j, 0] + _y[i][j, 1];
+          y[i][j] = _y[i][j, 0]/wts[i][j];
+          mu[i][j] = (wts[i][j] * y[i][j] + 0.5)/(wts[i][j] + 1);
+        }
+      }
+    }
+    return tuple(y, mu, wts);
+  }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 class PoissonDistribution(T) : AbstractDistribution!(T)
 {
@@ -140,6 +282,46 @@ class PoissonDistribution(T) : AbstractDistribution!(T)
   {
     return "PoissonDistribution";
   }
+  /* Block Matrix/Vector Overloads */
+  override initType!(BlockColumnVector!(T)) init(T)(BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong n = _y.length;
+    BlockColumnVector!(T) mu = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      mu[i] = map!( (T m) => m + 0.1 )(_y[i]);
+    BlockColumnVector!(T) y = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      y[i] = cast(ColumnVector!(T))_y[i];
+    return tuple(y, mu, wts);
+  }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 class GaussianDistribution(T) : AbstractDistribution!(T)
 {
@@ -171,6 +353,34 @@ class GaussianDistribution(T) : AbstractDistribution!(T)
   {
     return "GaussianDistribution";
   }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 class InverseGaussianDistribution(T) : AbstractDistribution!(T)
 {
@@ -201,6 +411,34 @@ class InverseGaussianDistribution(T) : AbstractDistribution!(T)
   override string toString()
   {
     return "InverseGaussianDistribution";
+  }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
   }
 }
 class NegativeBinomialDistribution(T) : AbstractDistribution!(T)
@@ -257,6 +495,34 @@ class NegativeBinomialDistribution(T) : AbstractDistribution!(T)
   {
     alpha = _alpha;
   }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 /*
   See p 149 & 433 Of Generalized Linear Models & Extensions, 
@@ -301,6 +567,34 @@ class PowerDistribution(T) : AbstractDistribution!(T)
   {
     k = _k;
   }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 class GammaDistribution(T) : AbstractDistribution!(T)
 {
@@ -331,6 +625,34 @@ class GammaDistribution(T) : AbstractDistribution!(T)
   override string toString()
   {
     return "GammaDistribution";
+  }
+  //mixin BlockDistributionGubbings!();
+  override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
+  {
+    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
   }
 }
 

@@ -120,3 +120,12 @@ RowVector!T createRandomRowVector(T = double)(ulong m)
     data[i] = uniform01!(T)(gen);
   return new RowVector!T(data);
 }
+/* Random number generator for block matrices */
+BlockColumnVector!(T) createRandomBlockColumnVector(T = double)(ulong m, ulong nBlocks)
+{
+  BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+  for(ulong i = 0; i < nBlocks; ++i)
+    ret[i] = createRandomColumnVector(m);
+  return ret;
+}
+
