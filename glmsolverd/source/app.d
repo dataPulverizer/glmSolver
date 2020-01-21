@@ -4,5 +4,6 @@ void main()
 {
   //timed_demo();
   //blockMatrixDemo();
-  linkBlockDemo();
+  //linkBlockDemo();
+  distribBlockDemo();
 }

@@ -30,6 +30,15 @@ Matrix!T createRandomMatrix(T = double)(ulong m, ulong n)
     data[i] = uniform01!(T)(gen);
   return new Matrix!T(data, [m, n]);
 }
+/* Random number generator for block matrices */
+BlockMatrix!(T, layout) createRandomBlockMatrix(T = double, CBLAS_LAYOUT layout = CblasColMajor)(ulong m, ulong n, ulong nBlocks)
+{
+  BlockMatrix!(T, layout) ret = new Matrix!(T, layout)[nBlocks];
+  for(ulong i = 0; i < nBlocks; ++i)
+    ret[i] = createRandomMatrix(m, n);
+  return ret;
+}
+
 Matrix!(T, layout) createSymmetricMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong m)
 {
   ulong n = m + (m*m - m)/2;

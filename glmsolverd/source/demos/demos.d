@@ -276,6 +276,24 @@ void linkBlockDemo()
   writeln("deta_dmu function test on block vectors:\n", link.deta_dmu(mu, eta));
 }
 
+/* Test distribution function with block vectors and matrices */
+void distribBlockDemo()
+{
+  auto distrib = new GaussianDistribution!(double)();
+  auto yM = createRandomBlockMatrix!(double)(10, 1, 5);
+  ColumnVector!(double)[] wts;
+  auto tpl = distrib.init(yM, wts);
+  auto y = tpl[0];
+  auto mu = tpl[1];
+  auto var = distrib.variance(mu);
+  auto dev = distrib.devianceResiduals(mu, y);
+  writeln("y:\n", y);
+  writeln("mu:\n", mu);
+  writeln("var:\n", var);
+  writeln("dev:\n", dev);
+}
+
+
 /* Function contains many GLM examples */
 void glm_demo()
 {
