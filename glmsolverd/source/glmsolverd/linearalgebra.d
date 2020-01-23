@@ -586,7 +586,7 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
               ref ColumnVector!(T) coef);
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef);
   /* Covariance calculation happens at the end of the regression function */
@@ -635,7 +635,7 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     coef = _solve(xwx, xwz);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -723,7 +723,7 @@ class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     R = coefR.R;
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -796,7 +796,7 @@ class GELSYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     return;
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -887,7 +887,7 @@ class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     R = coefR.R;
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -952,7 +952,7 @@ class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     coef = _gelsd_!(T, layout)(xw, zw);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -1021,7 +1021,7 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     coef = _gesv_(xwx, xwz);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -1093,7 +1093,7 @@ class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     coef = _posv_(xwx, xwz);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {
@@ -1165,7 +1165,7 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     coef = _sysv_(xwx, xwz);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef)
   {

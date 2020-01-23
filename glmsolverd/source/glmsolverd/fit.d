@@ -163,13 +163,14 @@ auto blockGLM(T, CBLAS_LAYOUT layout = CblasColMajor)(BlockMatrix!(T, layout) x,
         BlockColumnVector!T weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
-  auto nBlocks = y_.length;
+  auto nBlocks = _y.length;
   auto init = distrib.init(_y, weights);
-  auto y = init[0]; auto mu = init[1]; weights = init[2];
+  BlockColumnVector!(T) y = init[0]; 
+  BlockColumnVector!(T) mu = init[1]; weights = init[2];
   auto eta = link.linkfun(mu);
 
-  auto coef = zerosColumn!T(x.ncol);
-  auto coefold = zerosColumn!T(x.ncol);
+  auto coef = zerosColumn!T(x[0].ncol);
+  auto coefold = zerosColumn!T(x[0].ncol);
 
   auto absErr = T.infinity;
   auto relErr = T.infinity;
@@ -178,7 +179,10 @@ if(isFloatingPoint!T)
   auto devold = T.infinity;
 
   ulong iter = 1;
-  auto n = x.nrow; auto p = x.ncol;
+  ulong n = 0;
+  for(ulong i = 0; i < nBlocks; ++i)
+    n += x[i].nrow;
+  auto p = x[0].ncol;
   bool converged, badBreak, doOffset, doWeights;
 
   if(offset.length != 0)
@@ -192,7 +196,7 @@ if(isFloatingPoint!T)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
-    auto z = link.Z(y, mu, eta);
+    auto z = Z!(double)(link, y, mu, eta);
     if(doOffset)
     {
       for(ulong i = 0; i < nBlocks; ++i)

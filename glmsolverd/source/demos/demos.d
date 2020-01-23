@@ -276,6 +276,23 @@ void linkBlockDemo()
   writeln("deta_dmu function test on block vectors:\n", link.deta_dmu(mu, eta));
 }
 
+void blockGLMDemo()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+  auto energyX = readBlockMatrix!(double)(path ~ "energyBlockX/");
+  auto energyY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  auto blockGLMModel = blockGLM!(double)(energyX, 
+        energyY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", blockGLMModel);
+  auto energyX2 = readMatrix!(double)(path ~ "energyX.bin");
+  auto energyY2 = readMatrix!(double)(path ~ "energyY.bin");
+  auto glmModel = glm!(double)(energyX2, 
+        energyY2, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", glmModel);
+}
+
 /* Test distribution function with block vectors and matrices */
 void distribBlockDemo()
 {

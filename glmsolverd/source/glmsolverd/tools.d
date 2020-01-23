@@ -28,7 +28,7 @@ auto Z(T)(AbstractLink!T link, BlockColumnVector!T y,
   ulong n = y.length;
   BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
   for(ulong i = 0; i < n; ++i)
-    ret[i] = Z(y[i], mu[i], eta[i]);
+    ret[i] = Z(link, y[i], mu[i], eta[i]);
   return ret;
 }
 

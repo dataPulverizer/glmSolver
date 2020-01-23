@@ -2,8 +2,9 @@ import demos.demo;
 
 void main()
 {
-  timed_demo();
+  //timed_demo();
   //blockMatrixDemo();
   //linkBlockDemo();
   //distribBlockDemo();
+  blockGLMDemo();
 }
