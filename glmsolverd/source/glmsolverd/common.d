@@ -74,6 +74,54 @@ ColumnVector!(T) columnVector(T)(T[] data)
   return new ColumnVector!(T)(data);
 }
 /********************************************* Convenient Vector Functions *********************************************/
+
+/* Unsafe but fast initialization for vector & matrix */
+import core.stdc.stdlib: malloc;
+/* Initialize array using a pointer */
+ColumnVector!(T) fillColumn(T)(T x, ulong n)
+{
+  T* arr;
+  if(n > 0)
+  {
+    arr = cast(T*)malloc(T.sizeof * n);
+    if(arr == null)
+      assert(0, "Array Allocation Failed!");
+    for(ulong i = 0; i < n; ++i)
+      arr[i] = x;
+    return new ColumnVector!(T)(arr[0..n]);
+  }
+  return new ColumnVector!(T)(new T[0]);
+}
+ColumnVector!(T) zerosColumn(T)(ulong n)
+{
+  return fillColumn!(T)(cast(T)0, n);
+}
+/* Initialize array using a pointer */
+Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong nrow, ulong ncol)
+{
+  ulong n = nrow * ncol;
+  auto arr = cast(T*)malloc(T.sizeof*n);
+  if(arr == null)
+    assert(0, "Array Allocation Failed!");
+  for(ulong i = 0; i < n; ++i)
+    arr[i] = x;
+  return new Matrix!(T, layout)(arr[0..n], [nrow, ncol]);
+}
+Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
+{
+  return fillMatrix!(T, layout)(x, dim[0], dim[1]);
+}
+Matrix!(T, layout) zerosMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong[] dim)
+{
+  return fillMatrix!(T, layout)(cast(T)0, dim[0], dim[1]);
+}
+Matrix!(T, layout) zerosMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong nrow, ulong ncol)
+{
+  return fillMatrix!(T, layout)(cast(T)0, nrow, ncol);
+}
+
+
+/*
 auto fillColumn(T)(T x, ulong n)
 {
   auto v = new T[n];
@@ -83,15 +131,13 @@ auto fillColumn(T)(T x, ulong n)
 }
 auto zerosColumn(T)(ulong n)
 {
-  //auto v = new T[n];
-  //for(ulong i = 0; i < n; ++i)
-  //  v[i] = 0;
-  //return new ColumnVector!T(v);
   return fillColumn!(T)(0, n);
 }
+*/
+
 auto onesColumn(T)(ulong n)
 {
-  return fillColumn!(T)(1, n);
+  return fillColumn!(T)(cast(T)1, n);
 }
 RowVector!(T) rowVector(T)(T[] data)
 {

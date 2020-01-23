@@ -157,9 +157,37 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
     }
     void opIndexOpAssign(string op)(T x, ulong i, ulong j)
     {
-      static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
         mixin("return data[dim[0]*j + i] " ~ op ~ "= x;");
-      else static assert(0, "Operator "~ op ~" not implemented");
+      else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
+    }
+    Matrix!(T, L) opBinary(string op)(Matrix!(T, L) x)
+    {
+      assert( data.length == x.getData.length,
+            "Number of rows and columns in matrices not equal.");
+      ulong n = data.length;
+      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+      {
+        for(ulong i = 0; i < n; ++i)
+        {
+          mixin("ret.getData[i] = " ~ "data[i] " ~ op ~ " x.getData[i];");
+        }
+      }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
+      return ret;
+    }
+    void opOpAssign(string op)(Matrix!(T, L) x)
+    {
+      assert( data.length == x.getData.length,
+            "Number of rows and columns in matrices not equal.");
+      ulong n = data.length;
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+      {
+        for(ulong i = 0; i < n; ++i)
+        {
+          mixin("data[i] " ~ op ~ "= x.getData[i];");
+        }
+      }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
     }
     @property ulong nrow()
     {
@@ -356,7 +384,7 @@ mixin template VectorGubbings(T)
   }
   T opIndexOpAssign(string op)(T x, ulong i)
   {
-    static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
       mixin("return data[i] " ~ op ~ "= x;");
     else static assert(0, "Operator "~ op ~" not implemented");
   }
@@ -386,7 +414,7 @@ if(isNumeric!T)
   }
   ColumnVector!T opBinary(string op)(ColumnVector!T rhs)
   {
-    static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
       assert(data.length == rhs.data.length, "Vector lengths are not the same.");
       auto ret = new ColumnVector!T(rhs.data.dup);
@@ -397,7 +425,7 @@ if(isNumeric!T)
   }
   void opOpAssign(string op)(ColumnVector!T rhs)
   {
-    static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
       assert(data.length == rhs.data.length, "Vector lengths are not the same.");
       for(ulong i = 0; i < data.length; ++i)
@@ -423,7 +451,7 @@ if(isNumeric!T)
   }
   RowVector!T opBinary(string op)(RowVector!T rhs)
   {
-    static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
       assert(data.len == rhs.data.len, "Vector lengths are not the same.");
       auto ret = RowVector!T(rhs.data.dup);
@@ -434,7 +462,7 @@ if(isNumeric!T)
   }
   void opOpAssign(string op)(RowVector!T rhs)
   {
-    static if((op == "+") | (op == "-") | (op == "*") | (op == "/"))
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
       assert(data.len == rhs.data.len, "Vector lengths are not the same.");
       for(ulong i = 0; i < data.len; ++i)
@@ -446,21 +474,6 @@ if(isNumeric!T)
   {
     return new RowVector!T(data.dup);
   }
-}
-
-/* Fill ColumnVector!(T) */
-ColumnVector!(T) fillColumnVector(T)(T x, ulong n)
-{
-  T[] data = new T[n];
-  for(ulong i = 0; i < n; ++i)
-  {
-    data[i] = x;
-  }
-  return new ColumnVector!(T)(data);
-}
-ColumnVector!(T) zerosColumnVector(T)(ulong n)
-{
-  return new ColumnVector!(T)(new T[n]);
 }
 
 /* Aliases */

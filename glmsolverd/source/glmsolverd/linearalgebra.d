@@ -575,6 +575,8 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
   T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta);
   ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
               ColumnVector!(T) mu, ColumnVector!(T) eta);
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
   /* 
     Solver for calculating coefficients and preparing either R or xwx 
      for later calculating covariance matrix
@@ -583,8 +585,14 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
               ref ColumnVector!(T) coef);
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef);
   /* Covariance calculation happens at the end of the regression function */
-  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, 
+                         Matrix!(T, layout) R, Matrix!(T, layout) xwx, 
+                         Matrix!(T, layout) xw);
 }
 /**************************************** Vanilla Solver ***************************************/
 /*
@@ -606,6 +614,15 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     //writeln("Debug Vanilla Solver: (W)");
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -615,6 +632,24 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    coef = _solve(xwx, xwz);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    //writeln("Debug Vanilla Solver: solve()");
+    ulong n = x.length;
+    auto blockXW = sweep!( (x1, x2) => x1 * x2 )(x[0], w[0]);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(blockXW, x[0]);
+    auto xwz = mult_!(T, layout, CblasTrans)(blockXW, z[0]);
+    for(ulong i = 1; i < n; ++i)
+    {
+      blockXW = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(blockXW, x[i]);
+      xwz += mult_!(T, layout, CblasTrans)(blockXW, z[i]);
+    }
     coef = _solve(xwx, xwz);
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
@@ -667,6 +702,15 @@ class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -677,6 +721,13 @@ class GELSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     auto coefR = _gels_!(T, layout)(xw, zw);
     coef = coefR.coef;
     R = coefR.R;
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    assert(0, "GELSSolver not available for block data.");
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -725,6 +776,15 @@ class GELSYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -734,6 +794,13 @@ class GELSYSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
     coef = _gelsy_!(T, layout)(xw, zw);
     return;
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    assert(0, "GELSSolver not available for block data.");
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -799,6 +866,15 @@ class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -809,6 +885,13 @@ class GELSSSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     auto coefR = _gelss_!(T, layout)(xw, zw);
     coef = coefR.coef;
     R = coefR.R;
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    assert(0, "GELSSolver not available for block data.");
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -850,6 +933,15 @@ class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -858,6 +950,13 @@ class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     auto zw = map!( (x1, x2) => x1 * x2 )(z, w);
     coef = _gelsd_!(T, layout)(xw, zw);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    assert(0, "GELSSolver not available for block data.");
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -900,6 +999,15 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -908,7 +1016,26 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
+    //import std.stdio : writeln;
+    //writeln("xwz: \n", xwz);
     coef = _gesv_(xwx, xwz);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) XWZ = zerosColumn!(T)(p);
+    ulong nBlocks = x.length;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)( tmp , x[i]);
+      XWZ += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    coef = _gesv_(xwx, XWZ);
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -916,7 +1043,7 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     return inverse.inv(xwx);
   }
 }
-/**************************************** POSV Solver ***************************************/
+/**************************************** POSV Solver writeln***************************************/
 /*
   Cholesky Decomposition Solver For Positive Definite Matrices
 */
@@ -946,6 +1073,15 @@ class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -955,6 +1091,23 @@ class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
     coef = _posv_(xwx, xwz);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) XWZ = zerosColumn!(T)(p);
+    ulong nBlocks = x.length;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)( tmp , x[i]);
+      XWZ += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    coef = _posv_(xwx, XWZ);
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
@@ -992,6 +1145,15 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   {
     return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
   }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -1001,6 +1163,23 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
     coef = _sysv_(xwx, xwz);
+  }
+  void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) XWZ = zerosColumn!(T)(p);
+    ulong nBlocks = x.length;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+      XWZ += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    coef = _sysv_(xwx, XWZ);
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {

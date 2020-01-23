@@ -22,6 +22,15 @@ auto Z(T)(AbstractLink!T link, ColumnVector!T y,
 {
   return map!( (T x, T m, T t) => link.Z(x, m, t) )(y, mu, eta);
 }
+auto Z(T)(AbstractLink!T link, BlockColumnVector!T y, 
+          BlockColumnVector!T mu, BlockColumnVector!T eta)
+{
+  ulong n = y.length;
+  BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+  for(ulong i = 0; i < n; ++i)
+    ret[i] = Z(y[i], mu[i], eta[i]);
+  return ret;
+}
 
 /* Weights Vector */
 auto W(T)(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)

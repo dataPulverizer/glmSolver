@@ -195,9 +195,9 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
       for(ulong i = 0; i < n; ++i)
       {
         ulong m = _y[i].nrow;
-        y[i] = zerosColumnVector!(T)(m);
-        mu[i] = zerosColumnVector!(T)(m);
-        wts[i] = zerosColumnVector!(T)(m);
+        y[i] = zerosColumn!(T)(m);
+        mu[i] = zerosColumn!(T)(m);
+        wts[i] = zerosColumn!(T)(m);
         for(ulong j = 0; j < m; ++j)
         {
           wts[i][j] = _y[i][j, 0] + _y[i][j, 1];
@@ -233,7 +233,7 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
-      devianceResiduals(mu[i], y[i], wts[i]);
+      ret[i] = devianceResiduals(mu[i], y[i], wts[i]);
     return ret;
   }
 }
@@ -320,7 +320,7 @@ class PoissonDistribution(T) : AbstractDistribution!(T)
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
-      devianceResiduals(mu[i], y[i], wts[i]);
+      ret[i] = devianceResiduals(mu[i], y[i], wts[i]);
     return ret;
   }
 }
