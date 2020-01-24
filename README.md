@@ -68,6 +68,8 @@ can be tried out. Link Functions:
   The Names used `GETRIInverse`, `POTRIInverse`, `SYTRFInverse`, `GESVDInverse`, `GESVSolver`, `POSVSolver`, `SYSVSolver`, `GELSSolver`, `GELSYSolver`, `GELSSSolver`, `GELSDSolver`.
   - [x] iii. Dispersion (phi) - **Done** function which you divide the `(XWX)^-1` matrix by to get the covariance matrix - **Done**. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
   - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
+    - [ ] 1. 1-D block representation of matrices. Done for D
+    - [ ] 2. 2-D block representation of matrices
   - [ ] iv. Include weights simplication for when `(link.deta_dmu(mu, eta)^2) == distrib.variance(mu)^-1` for various link/distribution combinations.
   - [ ] vi. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
   - [ ] vii. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.

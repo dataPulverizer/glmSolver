@@ -16,7 +16,8 @@ import glmsolverd.tools;
 import glmsolverd.linearalgebra;
 
 /**************************************** GLM Function ***************************************/
-auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) x, 
+auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
+        RegularData dataType,  Matrix!(T, layout) x, 
         Matrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
@@ -155,18 +156,19 @@ if(isFloatingPoint!T)
   return obj;
 }
 /**************************************** BLOCK GLM Function ***************************************/
-auto blockGLM(T, CBLAS_LAYOUT layout = CblasColMajor)(BlockMatrix!(T, layout) x, 
-        BlockMatrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
+auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
+        Block1D dataType, Matrix!(T, layout)[] x, 
+        Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
-        Control!T control = new Control!T(), BlockColumnVector!T offset = new ColumnVector!(T)[0],
-        BlockColumnVector!T weights = new ColumnVector!(T)[0])
+        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
   auto nBlocks = _y.length;
   auto init = distrib.init(_y, weights);
-  BlockColumnVector!(T) y = init[0]; 
-  BlockColumnVector!(T) mu = init[1]; weights = init[2];
+  ColumnVector!(T)[] y = init[0]; 
+  ColumnVector!(T)[] mu = init[1]; weights = init[2];
   auto eta = link.linkfun(mu);
 
   auto coef = zerosColumn!T(x[0].ncol);
@@ -174,7 +176,7 @@ if(isFloatingPoint!T)
 
   auto absErr = T.infinity;
   auto relErr = T.infinity;
-  BlockColumnVector!(T) residuals; // = zerosColumn!T(y.len);
+  ColumnVector!(T)[] residuals; // = zerosColumn!T(y.len);
   auto dev = T.infinity;
   auto devold = T.infinity;
 
@@ -191,7 +193,7 @@ if(isFloatingPoint!T)
     doWeights = true;
 
   Matrix!(T, layout) cov, xw, xwx, R;
-  BlockColumnVector!(T) w;
+  ColumnVector!(T)[] w;
   while(relErr > control.epsilon)
   {
     if(control.printError)

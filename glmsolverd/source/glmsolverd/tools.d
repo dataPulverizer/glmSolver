@@ -160,3 +160,6 @@ if(isFloatingPoint!T)
   }
 }
 
+interface AbstractMatrixType {}
+class RegularData : AbstractMatrixType {}
+class Block1D : AbstractMatrixType {}

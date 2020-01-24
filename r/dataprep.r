@@ -127,3 +127,7 @@ fwrite(data.table(educationY), file = paste0(dataFolder, "educationY.csv"), col.
 write2DArray(dataFolder %+% "educationX.bin", educationX, 8)
 write2DArray(dataFolder %+% "educationY.bin", educationY, 8)
 # write1DArray(dataFolder %+% "educationY.bin", as.vector(educationY), 8)
+
+# Write Matrix as block
+write2DBlock(dataFolder %+% "educationBlockX", matrixToBlock(educationX, 8))
+write2DBlock(dataFolder %+% "educationBlockY", matrixToBlock(educationY, 8))
