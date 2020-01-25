@@ -309,6 +309,16 @@ void blockGLMDemo()
         new LogitLink!(double)(), new VanillaSolver!(double)(), 
         new GETRIInverse!(double)());
   writeln("Regular Model\n", eduModel);
+
+  auto gammaBlockModel = glm!(double)(new Block1D(), energyX, 
+        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", gammaBlockModel);
+  
+  auto gammaModel = glm!(double)(new RegularData(), energyX2, 
+        energyY2, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", gammaModel);
 }
 
 /* Test distribution function with block vectors and matrices */
