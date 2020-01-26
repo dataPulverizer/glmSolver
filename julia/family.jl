@@ -34,6 +34,18 @@ InitType{T} = Tuple{Array{T, 1}, Array{T, 1}, Array{T, 1}} where {T <: AbstractF
   return y, y, wts
 end
 
+function init(::AbstractDistribution, y::Array{Array{T}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  if length(size(y[1])) == 2
+    y = [y[i][:, 1] for i in 1:nBlocks]
+  end
+  mu = Array{Array{T, 1}, 1}(undef, nBlocks);
+  for i in 1:nBlocks
+    mu[i] = copy(y[i]);
+  end
+  return y, mu, wts;
+end
+
 #=
   BinomialDistribution
 =#
@@ -64,10 +76,48 @@ end
   return y, mu, wts
 end
 
+@inline function init!(::BinomialDistribution, y::Array{Array{T}, 1}, wts::Array{Array{T, 1}, 1})::InitType{Array{T, 1}} where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  if size(y[1]) == 1
+    y = [y[i][:, 1] for i in 1:nBlocks]
+    if length(wts) == 0
+      mu = [(y[i] .+ T(0.5))./2 for i in 1:nBlocks]
+    else
+      mu = [(wts[i] .* y .+ T(0.5))./(wts[i] .+ T(1)) for i in 1:nBlocks]
+    end
+  elseif size(y[1])[2] == 2
+    events = [y[i][:, 1] for i in 1:nBlocks]
+    N = [events[i] .+ y[i][:, 2] for i in 1:nBlocks]
+    for i in 1:nBlocks
+      n = size(y[i])[1]
+      tmp = zeros(T, n)
+      for j in 1:n
+        tmp[j] = if N[i][j] != 0; events[i][j]/N[i][j]; else T(0) end
+      end
+      y[i] = tmp
+    end
+    # y = [if N[i] != 0; events[i]/N[i]; else T(0) end for i in 1:n]
+    if length(wts) != 0
+      [wts[i] .*= N[i] for i in 1:nBlocks]
+    else
+      wts = N
+    end
+    mu = [(N[i] .* y[i] .+ T(0.5))./(N[i] .+ T(1)) for i in 1:nBlocks]
+  else
+    error("There was a problem with the dimensions of y")
+  end
+  return y, mu, wts
+end
+
 
 # Variance Functions
 @inline function variance(::BinomialDistribution, mu::Array{T, 1})::Array{T, 1} where {T <: AbstractFloat}
   return mu .* (1 .- mu)
+end
+
+function variance(distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [variance(distrib, mu[i]) for i in 1:nBlocks]
 end
 
 # As in R
@@ -87,13 +137,35 @@ end
   return sum(((y .- mu).^2)./variance(distrib, mu))
 end
 
+function devianceResiduals(distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1},
+        y::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks = length(y)
+  return [devianceResiduals(distrib, mu[i], y[i]) for i in 1:nBlocks]
+end
+
+function devianceResiduals(distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1},
+        y::Array{Array{T, 1}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks = length(y)
+  return [devianceResiduals(distrib, mu[i], y[i], wts[i]) for i in 1:nBlocks]
+end
+
+
 #=
   PoissonDistribution
 =#
 
 @inline function init!(::PoissonDistribution, y::Array{T}, wts::Array{T, 1})::InitType{T} where {T <: AbstractFloat}
   y = y[:, 1]
-  mu = y .+ 0.1
+  mu = y .+ T(0.1)
+  return y, mu, wts
+end
+
+function init!(::PoissonDistribution, y::Array{Array{T}, 1},
+            wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  tmp = T(0.1)
+  y = [y[i][:, 1] for i in 1:nBlocks]
+  mu = [y[i][:, 1] .+ tmp for i in 1:nBlocks]
   return y, mu, wts
 end
 
@@ -197,7 +269,7 @@ end
 @inline function init!(::NegativeBernoulliDistribution{T}, y::Array{T}, wts::Array{T, 1})::InitType{T} where {T <: AbstractFloat}
   y = y[:, 1]
   mu = copy(y)
-  tmp = 1/6
+  tmp = T(1/6)
   for i in 1:length(y)
     if y[i] == 0
       mu[i] += tmp
@@ -205,6 +277,16 @@ end
   end
   return y, mu, wts
 end
+
+function init!(::NegativeBernoulliDistribution{T}, y::Array{Array{T}, 1},
+            wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  tmp = T(1/6)
+  y = [y[i][:, 1] for i in 1:nBlocks]
+  mu = [y[i][:, 1] .+ tmp for i in 1:nBlocks]
+  return y, mu, wts
+end
+
 
 # Variance functions
 @inline function variance(distrib::NegativeBernoulliDistribution{T}, mu::Array{T, 1})::Array{T, 1} where {T <: AbstractFloat}

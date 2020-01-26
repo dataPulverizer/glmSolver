@@ -4,23 +4,41 @@
 
 # This implementation of calculation of z is the same for all the link functions
 @inline function Z(link::AbstractLink, y::Array{T, 1}, mu::Array{T, 1}, 
-  eta::Array{T, 1})::Array{T, 1} where {T <: AbstractFloat}
-return (deta_dmu(link, mu, eta) .* (y .- mu)) .+ eta
+            eta::Array{T, 1})::Array{T, 1} where {T <: AbstractFloat}
+  return (deta_dmu(link, mu, eta) .* (y .- mu)) .+ eta
+end
+
+function Z(link::AbstractLink, y::Array{Array{T, 1}, 1}, mu::Array{Array{T, 1}, 1}, 
+            eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  return [(deta_dmu(link, mu[i], eta[i]) .* (y[i] .- mu[i])) .+ eta[i] for i in 1:nBlocks]
 end
 
 # Weights for the VanillaSolver
 @inline function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
   return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-1)
 end
+function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
+end
 
 # Weights for the QRSolver
 @inline function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
   return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
 end
+function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
+end
 
 # The actual weights function used
 @inline function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
   return ( (deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
+end
+function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [( (deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
 end
 
 
@@ -52,6 +70,10 @@ end
 @inline function relativeError(x::T, y::T) where {T <: AbstractFloat}
   return abs(x - y)/(0.1 + abs(x))
 end
+
+abstract type AbstractMatrixType end
+struct RegularData <: AbstractMatrixType end
+struct Block1D <: AbstractMatrixType end
 
 #=
 GLM Class Object

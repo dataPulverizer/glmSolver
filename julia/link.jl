@@ -195,3 +195,18 @@ end
   tmp = exp.(eta)
   return tmp ./(link.Alpha .* (1 .- tmp))
 end
+
+
+# For block functions
+function linkfun(link::AbstractLink, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [linkfun(link, mu[i]) for i in 1:nBlocks]
+end
+function deta_dmu(link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [deta_dmu(link, mu[i], eta[i]) for i in 1:nBlocks]
+end
+function linkinv(link::AbstractLink, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(eta)
+  return [linkinv(link, eta[i]) for i in 1:nBlocks]
+end

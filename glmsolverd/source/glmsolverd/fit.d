@@ -156,6 +156,13 @@ if(isFloatingPoint!T)
   return obj;
 }
 /**************************************** BLOCK GLM Function ***************************************/
+/*
+  For now Block1D overload is limited only to the following solvers ...
+
+  GESVSolver
+  POSVSolver
+  SYSVSolver
+*/
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Block1D dataType, Matrix!(T, layout)[] x, 
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,

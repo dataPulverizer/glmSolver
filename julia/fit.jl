@@ -2,7 +2,7 @@
   Module To Fit GLM
 =#
 
-function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
+function glm(::RegularData, x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
               solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
               offset::Array{T, 1} = Array{T, 1}(undef, 0), 
               weights = Array{T, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
@@ -183,10 +183,14 @@ function glm(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::A
 end
 
 
-#==============================  Old GLM Function ==============================#
-function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
-              solver::Type{<: AbstractSolver} = VanillaSolver, offset::Array{T, 1} = Array{T, 1}(undef, 0), 
-              weights = Array{T, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
+#============================== BLOCK GLM FUNCTION ==============================#
+#=
+  Valid only for solvers: GESVSolver, POSVSolver, SYSVSolver
+=#
+function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib::AbstractDistribution, link::AbstractLink; 
+              solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
+              offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
+              weights = Array{Array{T, 1}, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
   y, mu, weights = init!(distrib, y, weights)
   eta = linkfun(link, mu)
@@ -197,13 +201,16 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
   absErr::T = T(Inf)
   relErr::T = T(Inf)
 
-  residuals::Array{T, 1} = zeros(T, size(y))
+  nBlocks::Int64 = length(mu)
+
+  residuals::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0)
   dev::T = T(Inf)
   devold::T = T(Inf)
 
   iter::Int64 = 1
 
-  n, p = size(x)
+  n = sum(map((y) -> size(y)[1], x))
+  p = size(x[1])[2]
   converged::Bool = false
   badBreak::Bool = false
 
@@ -217,41 +224,43 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
   end
 
   Cov::Array{T, 2} = zeros(T, (p, p))
+  xwx::Array{T, 2} = zeros(T, (p, p))
+  R::Array{T, 2} = zeros(T, (p, p))
+  xw::Array{Array{T, 2}, 1} = Array{Array{T, 2}, 1}(undef, 0)
   while (relErr > control.epsilon)
     if control.printError
       println("Iteration: $iter")
     end
-    z::Array{T, 1} = Z(link, y, mu, eta)
+    z::Array{Array{T, 1}, 1} = Z(link, y, mu, eta)
     if doOffset
-      z .-= offset
+      for i in 1:nBlocks
+        z[i] .-= offset[i]
+      end
     end
     
     
-    # w::Array{T, 1} = W(solver, distrib, link, mu, eta)
-    w::Array{T, 1} = W(distrib, link, mu, eta)
+    w::Array{T, 1} = W(solver, distrib, link, mu, eta)
     if doWeights
-      w .*= weights
-    end
-
-    xw::Array{T, 2} = copy(x)
-    for j in 1:p
-      for i in 1:n
-        xw[i, j] = xw[i, j] * w[i]
+      for i in 1:nBlocks
+        w[i] .*= weights[i]
       end
     end
 
-    z .*= w
-
-    # Overwrites xw in the QR case!
-    coef = solve(solver, xw, z)
-
+    R, xwx, xw, x, z, w, coef = solve!(solver, R, xwx, xw, 
+                                    x, z, w, coef)
+    
+    # println("xwx:\n", xwx)
+    # println("coef:\n", coef)
+    
     if(control.printCoef)
       println(coef)
     end
 
     eta = x * coef
     if doOffset
-      eta .+= offset
+      for i in 1:nBlocks
+        eta[i] .+= offset[i]
+      end
     end
     mu = linkinv(link, eta)
     
@@ -261,7 +270,10 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
       residuals = devianceResiduals(distrib, mu, y, weights)
     end
 
-    dev = sum(residuals)
+    dev = T(0)
+    for i in 1:nBlocks
+      dev += sum(residuals[i])
+    end
 
     absErr = absoluteError(dev, devold)
     relErr = relativeError(dev, devold)
@@ -292,7 +304,9 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
       # that it doesn't need to be repeated
       eta = x * coef
       if doOffset
-        eta .+= offset
+        for i in 1:nBlocks
+          eta[i] .+= offset[i]
+        end
       end
       mu = linkinv(link, eta)
 
@@ -302,7 +316,11 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
         residuals = devianceResiduals(distrib, mu, y, weights)
       end
 
-      dev = sum(residuals)
+      # dev = sum(residuals)
+      dev = T(0)
+      for i in 1:nBlocks
+        dev += sum(residuals[i])
+      end
       
       absErr = absoluteError(dev, devold)
       relErr = relativeError(dev, devold)
@@ -315,7 +333,8 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
     devold = dev
     coefold = coef
 
-    Cov = xw' * xw
+    # Cov = xw' * xw
+    Cov = cov(solver, inverse, R, xwx, xw)
 
     if control.printError
       # println("Iteration: $iter")
@@ -325,7 +344,8 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
     end
 
     if iter >= control.maxit
-      println("Maximum number of iterations " * string(control.maxit) * " has been reached.")
+      println("Maximum number of iterations " * 
+                string(control.maxit) * " has been reached.")
       badBreak = true
       break
     end
@@ -340,6 +360,12 @@ function glm_old(x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, lin
     converged = true
   end
 
-  return GLM(link, distrib, coef, inv(Cov), iter, relErr, absErr, converged, 
+  phi::T = T(1)
+  if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
+    phi = dev/(n - p)
+    Cov .*= phi
+  end
+
+  return GLM(link, distrib, phi, coef, Cov, iter, relErr, absErr, converged, 
              dev, residuals)
 end
