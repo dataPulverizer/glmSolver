@@ -1,13 +1,20 @@
 module GLMSolver
 
 path = "/home/chib/code/glmSolver/"
+include(path * "julia/io.jl")
 include(path * "julia/link.jl")
 include(path * "julia/family.jl")
 include(path * "julia/solver.jl")
 include(path * "julia/tools.jl")
 include(path * "julia/fit.jl")
 
-export AbstractLink,
+export write2DArray,
+       writeBlockMatrix,
+       read2DArray,
+       readBlockMatrix,
+       writeNDArray,
+       readNDArray,
+       AbstractLink,
        IdentityLink,
        LogLink,
        InverseLink,
@@ -58,6 +65,9 @@ export AbstractLink,
        Control,
        absoluteError,
        relativeError,
+       AbstractMatrixType,
+       RegularData,
+       Block1D,
        GLM,
        glm
 end # module

@@ -34,7 +34,7 @@ InitType{T} = Tuple{Array{T, 1}, Array{T, 1}, Array{T, 1}} where {T <: AbstractF
   return y, y, wts
 end
 
-function init(::AbstractDistribution, y::Array{Array{T}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+function init!(::AbstractDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(y)
   if length(size(y[1])) == 2
     y = [y[i][:, 1] for i in 1:nBlocks]
@@ -76,7 +76,7 @@ end
   return y, mu, wts
 end
 
-@inline function init!(::BinomialDistribution, y::Array{Array{T}, 1}, wts::Array{Array{T, 1}, 1})::InitType{Array{T, 1}} where {T <: AbstractFloat}
+@inline function init!(::BinomialDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Array{T, 1}, 1})::InitType{Array{T, 1}} where {T <: AbstractFloat}
   nBlocks::Int64 = length(y)
   if size(y[1]) == 1
     y = [y[i][:, 1] for i in 1:nBlocks]
@@ -160,7 +160,7 @@ end
   return y, mu, wts
 end
 
-function init!(::PoissonDistribution, y::Array{Array{T}, 1},
+function init!(::PoissonDistribution, y::Array{Array{T, 2}, 1},
             wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(y)
   tmp = T(0.1)
@@ -278,7 +278,7 @@ end
   return y, mu, wts
 end
 
-function init!(::NegativeBernoulliDistribution{T}, y::Array{Array{T}, 1},
+function init!(::NegativeBernoulliDistribution{T}, y::Array{Array{T, 2}, 1},
             wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(y)
   tmp = T(1/6)

@@ -78,7 +78,10 @@ struct Block1D <: AbstractMatrixType end
 #=
 GLM Class Object
 =#
-struct GLM{T <: AbstractFloat}
+
+abstract type AbstractGLM end
+
+struct GLM{T <: AbstractFloat} <: AbstractGLM
   link::AbstractLink
   distrib::AbstractDistribution
   phi::T
@@ -100,6 +103,33 @@ struct GLM{T <: AbstractFloat}
               relativeError, absoluteError, converged, deviance, residuals)
   end
 end
+
+
+struct GLMBlock1D{T <: AbstractFloat} <: AbstractGLM
+  link::AbstractLink
+  distrib::AbstractDistribution
+  phi::T
+  coefficients::Array{T, 1}
+  covariance::Array{T, 2}
+  iterations::Int64
+  relativeError::T
+  absoluteError::T
+  converged::Bool
+  deviance::T
+  residuals::Array{Array{T, 1}, 1}
+  function GLMBlock1D(link::AbstractLink, distrib::AbstractDistribution, 
+                phi::T, coefficients::Array{T, 1}, 
+                covariance::Array{T, 2}, iterations::Int64,
+                relativeError::T, absoluteError::T,
+                converged::Bool, deviance::T,
+                residuals::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  return new{T}(link, distrib, phi, coefficients, covariance, iterations, 
+              relativeError, absoluteError, converged, deviance, residuals)
+  end
+end
+
+
+
 
 #=
   Show Method for GLMs

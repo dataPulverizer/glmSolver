@@ -36,3 +36,17 @@ quineY = readdlm(path*"data/quineY.csv", ',', Float64);
 educationX = readdlm(path*"data/educationX.csv", ',', Float64);
 educationY = readdlm(path*"data/educationY.csv", ',', Float64);
 
+# Block data
+creditBlockX = readBlockMatrix(Float64, path * "data/creditBlockX")
+creditBlockY = readBlockMatrix(Float64, path * "data/creditBlockY")
+
+educationBlockX = readBlockMatrix(Float64, path * "data/educationBlockX")
+educationBlockY = readBlockMatrix(Float64, path * "data/educationBlockY")
+
+energyBlockX = readBlockMatrix(Float64, path * "data/energyBlockX")
+energyBlockY = readBlockMatrix(Float64, path * "data/energyBlockY")
+
+insuranceBlockX = readBlockMatrix(Float64, path * "data/insuranceBlockX")
+insuranceBlockY = readBlockMatrix(Float64, path * "data/insuranceBlockY")
+
+

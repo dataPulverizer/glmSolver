@@ -81,3 +81,9 @@ TODO:
 
 1. Do test/examples for offset and weights
 =#
+
+model = glm(Block1D(), energyBlockX, energyBlockY, GammaDistribution(), LogLink())
+
+
+
+

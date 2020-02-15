@@ -187,7 +187,7 @@ end
 #=
   Valid only for solvers: GESVSolver, POSVSolver, SYSVSolver
 =#
-function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib::AbstractDistribution, link::AbstractLink; 
+function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, link::AbstractLink; 
               solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
               offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
               weights = Array{Array{T, 1}, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
@@ -195,8 +195,8 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
   y, mu, weights = init!(distrib, y, weights)
   eta = linkfun(link, mu)
 
-  coef = zeros(T, size(x)[2])
-  coefold = zeros(T, size(x)[2])
+  coef = zeros(T, size(x[1])[2])
+  coefold = zeros(T, size(x[1])[2])
 
   absErr::T = T(Inf)
   relErr::T = T(Inf)
@@ -239,15 +239,19 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
     end
     
     
-    w::Array{T, 1} = W(solver, distrib, link, mu, eta)
+    w::Array{Array{T, 1}, 1} = W(solver, distrib, link, mu, eta)
     if doWeights
       for i in 1:nBlocks
         w[i] .*= weights[i]
       end
     end
 
+    # println("Coefficient: ", coef)
+    
+    # println("Typeof coeff before: ", typeof(coef))
     R, xwx, xw, x, z, w, coef = solve!(solver, R, xwx, xw, 
                                     x, z, w, coef)
+    coef = reshape(coef, (p,))
     
     # println("xwx:\n", xwx)
     # println("coef:\n", coef)
@@ -256,7 +260,7 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
       println(coef)
     end
 
-    eta = x * coef
+    eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
     if doOffset
       for i in 1:nBlocks
         eta[i] .+= offset[i]
@@ -302,7 +306,7 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
 
       # Abstract this block away into a function so 
       # that it doesn't need to be repeated
-      eta = x * coef
+      eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
       if doOffset
         for i in 1:nBlocks
           eta[i] .+= offset[i]
@@ -334,7 +338,7 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
     coefold = coef
 
     # Cov = xw' * xw
-    Cov = cov(solver, inverse, R, xwx, xw)
+    Cov = cov(solver, inverse, R, xwx)
 
     if control.printError
       # println("Iteration: $iter")
@@ -366,6 +370,6 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T}, 1}, distrib
     Cov .*= phi
   end
 
-  return GLM(link, distrib, phi, coef, Cov, iter, relErr, absErr, converged, 
+  return GLMBlock1D(link, distrib, phi, coef, Cov, iter, relErr, absErr, converged, 
              dev, residuals)
 end

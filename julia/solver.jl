@@ -197,8 +197,8 @@ function calcXWX(xwx::Array{T, 2}, x::Array{Array{T, 2}, 1}, w::Array{Array{T, 1
   for i in 1:nBlocks
     xw = copy(x[i])
     xw = multSweep(xw, w[i])
-    xwx += xw' * x
-    xwz += xw' * z
+    xwx += xw' * x[i]
+    xwz += xw' * z[i]
   end
   return xwx, xwz
 end
@@ -241,6 +241,10 @@ function solve!(::GESVSolver, R::Array{T, 2},
 end
 # Default Covariance Function
 function cov(::AbstractSolver, invType::AbstractInverse, R::Array{T, 2}, xwx::Array{T, 2}, xw::Array{T, 2})::Array{T, 2} where {T <: AbstractFloat}
+  return inv(invType, xwx)
+end
+
+function cov(::AbstractSolver, invType::AbstractInverse, R::Array{T, 2}, xwx::Array{T, 2})::Array{T, 2} where {T <: AbstractFloat}
   return inv(invType, xwx)
 end
 

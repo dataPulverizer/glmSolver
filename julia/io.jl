@@ -57,6 +57,7 @@ function read2DArray(::Type{T}, fileName::String) where {T <: AbstractFloat}
   for i in eachindex(arr)
     arr[i] = read(io, T)
   end
+  close(io)
   return arr
 end
 
