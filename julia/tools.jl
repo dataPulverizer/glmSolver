@@ -134,7 +134,7 @@ end
 #=
   Show Method for GLMs
 =#
-function Base.show(io::IO, ::MIME"text/plain", model::GLM{T}) where {T <: AbstractFloat}
+function Base.show(io::IO, ::MIME"text/plain", model::AbstractGLM)
   rep::String = "GLM(" * string(model.link) * ", " * string(model.distrib) * ")\n"
   rep *= "Info(Convergence = " * string(model.converged) * ", " *
           "Iterations = " * string(model.iterations) * ")\n"

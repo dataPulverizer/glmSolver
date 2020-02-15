@@ -67,7 +67,9 @@ export write2DArray,
        relativeError,
        AbstractMatrixType,
        RegularData,
-       Block1D,
+       AbstractGLM,
        GLM,
+       GLMBlock1D,
+       Block1D,
        glm
 end # module

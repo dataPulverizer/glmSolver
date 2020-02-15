@@ -22,7 +22,7 @@ end
 
 
 # Type returned from init!() function
-InitType{T} = Tuple{Array{T, 1}, Array{T, 1}, Array{T, 1}} where {T <: AbstractFloat}
+InitType{T} = Tuple{Array{T, 1}, Array{T, 1}, Array{T, 1}} # where {T <: AbstractFloat}
 
 #=
   Distribution Implementations
@@ -78,7 +78,7 @@ end
 
 @inline function init!(::BinomialDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Array{T, 1}, 1})::InitType{Array{T, 1}} where {T <: AbstractFloat}
   nBlocks::Int64 = length(y)
-  if size(y[1]) == 1
+  if size(y[1])[2] == 1
     y = [y[i][:, 1] for i in 1:nBlocks]
     if length(wts) == 0
       mu = [(y[i] .+ T(0.5))./2 for i in 1:nBlocks]
@@ -88,14 +88,16 @@ end
   elseif size(y[1])[2] == 2
     events = [y[i][:, 1] for i in 1:nBlocks]
     N = [events[i] .+ y[i][:, 2] for i in 1:nBlocks]
+    yNew = Array{Array{T, 1}, 1}(undef, nBlocks)
     for i in 1:nBlocks
       n = size(y[i])[1]
       tmp = zeros(T, n)
       for j in 1:n
         tmp[j] = if N[i][j] != 0; events[i][j]/N[i][j]; else T(0) end
       end
-      y[i] = tmp
+      yNew[i] = tmp
     end
+    y = yNew
     # y = [if N[i] != 0; events[i]/N[i]; else T(0) end for i in 1:n]
     if length(wts) != 0
       [wts[i] .*= N[i] for i in 1:nBlocks]
