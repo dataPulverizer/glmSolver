@@ -2,6 +2,12 @@
   GLM Link Functions
 =#
 
+abstract type AbstractMatrixType end
+struct RegularData <: AbstractMatrixType end
+struct Block1D <: AbstractMatrixType end
+struct Block1DParallel <: AbstractMatrixType end
+
+
 using Distributions
 
 # Defining the standard normal for further use
@@ -197,7 +203,7 @@ end
 end
 
 
-# For block functions
+# For block algorithm
 function linkfun(link::AbstractLink, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(mu)
   return [linkfun(link, mu[i]) for i in 1:nBlocks]
@@ -209,4 +215,30 @@ end
 function linkinv(link::AbstractLink, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(eta)
   return [linkinv(link, eta[i]) for i in 1:nBlocks]
+end
+
+# For parallel block algorithm
+function linkfun(::Block1DParallel, link::AbstractLink, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = linkfun(link, mu[i])
+  end
+  return ret
+end
+function deta_dmu(::Block1DParallel, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = deta_dmu(link, mu[i], eta[i])
+  end
+  return ret
+end
+function linkinv(::Block1DParallel, link::AbstractLink, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(eta)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = linkinv(link, eta[i])
+  end
+  return ret
 end

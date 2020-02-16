@@ -46,6 +46,20 @@ function init!(::AbstractDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Arra
   return y, mu, wts;
 end
 
+function init!(::Block1DParallel, ::AbstractDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  isMat::Bool = length(size(y[1])) == 2
+  mu = Array{Array{T, 1}, 1}(undef, nBlocks);
+  yNew = Array{Array{T, 1}, 1}(undef, nBlocks);
+  @threads for i in 1:nBlocks
+    tmp = isMat ? y[i][:, 1] : y[i]
+    mu[i] = copy(tmp);
+    yNew[i] = tmp
+  end
+  return yNew, mu, wts;
+end
+
+
 #=
   BinomialDistribution
 =#
@@ -111,6 +125,66 @@ end
   return y, mu, wts
 end
 
+@inline function init!(::Block1DParallel, ::BinomialDistribution, y::Array{Array{T, 2}, 1}, wts::Array{Array{T, 1}, 1})::InitType{Array{T, 1}} where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  yNew = Array{Array{T, 1}, 1}(undef, nBlocks)
+  mu = Array{Array{T, 1}, 1}(undef, nBlocks)
+  events = Array{Array{T, 1}, 1}(undef, nBlocks)
+  N = Array{Array{T, 1}, 1}(undef, nBlocks)
+  if size(y[1])[2] == 1
+    # y = [y[i][:, 1] for i in 1:nBlocks]
+    @threads for i in 1:nBlocks
+      yNew[i] = y[i][:, 1]
+    end
+    y = yNew
+    if length(wts) == 0
+      # mu = [(y[i] .+ T(0.5))./2 for i in 1:nBlocks]
+      @threads for i in 1:nBlocks
+        mu[i] = (y[i] .+ T(0.5))./2
+      end
+    else
+      # mu = [(wts[i] .* y .+ T(0.5))./(wts[i] .+ T(1)) for i in 1:nBlocks]
+      @threads for i in 1:nBlocks
+        mu[i] = (wts[i] .* y .+ T(0.5))./(wts[i] .+ T(1))
+      end
+    end
+  elseif size(y[1])[2] == 2
+    # events = [y[i][:, 1] for i in 1:nBlocks]
+    @threads for i in 1:nBlocks
+      events[i] = y[i][:, 1]
+    end
+    # N = [events[i] .+ y[i][:, 2] for i in 1:nBlocks]
+    @threads for i in 1:nBlocks
+      N[i] = events[i] .+ y[i][:, 2]
+    end
+    @threads for i in 1:nBlocks
+      n = size(y[i])[1]
+      tmp = zeros(T, n)
+      for j in 1:n
+        tmp[j] = if N[i][j] != 0; events[i][j]/N[i][j]; else T(0) end
+      end
+      yNew[i] = tmp
+    end
+    y = yNew
+    # y = [if N[i] != 0; events[i]/N[i]; else T(0) end for i in 1:n]
+    if length(wts) != 0
+      # [wts[i] .*= N[i] for i in 1:nBlocks]
+      @threads for i in 1:nBlocks
+        wts[i] = wts[i] .* N[i]
+      end
+    else
+      wts = N
+    end
+    # mu = [(N[i] .* y[i] .+ T(0.5))./(N[i] .+ T(1)) for i in 1:nBlocks]
+    @threads for i in 1:nBlocks
+      mu[i] = (N[i] .* y[i] .+ T(0.5))./(N[i] .+ T(1))
+    end
+  else
+    error("There was a problem with the dimensions of y")
+  end
+  return y, mu, wts
+end
+
 
 # Variance Functions
 @inline function variance(::BinomialDistribution, mu::Array{T, 1})::Array{T, 1} where {T <: AbstractFloat}
@@ -120,6 +194,15 @@ end
 function variance(distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(mu)
   return [variance(distrib, mu[i]) for i in 1:nBlocks]
+end
+
+function variance(::Block1DParallel, distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = variance(distrib, mu[i])
+  end
+  return ret
 end
 
 # As in R
@@ -139,6 +222,7 @@ end
   return sum(((y .- mu).^2)./variance(distrib, mu))
 end
 
+# For 1D block 
 function devianceResiduals(distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1},
         y::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks = length(y)
@@ -151,6 +235,25 @@ function devianceResiduals(distrib::AbstractDistribution, mu::Array{Array{T, 1},
   return [devianceResiduals(distrib, mu[i], y[i], wts[i]) for i in 1:nBlocks]
 end
 
+# Parallel 1D Block
+function devianceResiduals(::Block1DParallel, distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1},
+        y::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks = length(y)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = devianceResiduals(distrib, mu[i], y[i]) 
+  end
+  return ret
+end
+function devianceResiduals(::Block1DParallel, distrib::AbstractDistribution, mu::Array{Array{T, 1}, 1},
+        y::Array{Array{T, 1}, 1}, wts::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks = length(y)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = devianceResiduals(distrib, mu[i], y[i], wts[i])
+  end
+  return ret
+end
 
 #=
   PoissonDistribution

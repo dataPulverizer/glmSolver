@@ -71,5 +71,6 @@ export write2DArray,
        GLM,
        GLMBlock1D,
        Block1D,
+       Block1DParallel,
        glm
 end # module

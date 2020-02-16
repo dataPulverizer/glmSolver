@@ -203,6 +203,24 @@ function calcXWX(xwx::Array{T, 2}, x::Array{Array{T, 2}, 1}, w::Array{Array{T, 1
   return xwx, xwz
 end
 
+function calcXWX(::Block1DParallel, xwx::Array{T, 2}, x::Array{Array{T, 2}, 1}, w::Array{Array{T, 1}, 1}, z::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  p::Int64 = size(x[1])[2]
+  nBlocks::Int64 = length(x)
+  xwx = [zeros(T, (p, p)) for i in 1:nthreads()]
+  xwz = [zeros(T, (p, 1)) for i in 1:nthreads()]
+  @threads for i in 1:nBlocks
+    xw = copy(x[i])
+    xw = multSweep(xw, w[i])
+    xwx[threadid()] += xw' * x[i]
+    xwz[threadid()] += xw' * z[i]
+  end
+  for i in 2:nthreads()
+    xwx[1] .+= xwx[i]
+    xwz[1] .+= xwz[i]
+  end
+  return xwx[1], xwz[1]
+end
+
 function calcXW(xwx::Array{T, 2}, x::Array{T, 2}, w::Array{T, 1}, z::Array{T, 1}) where {T <: AbstractFloat}
   # n, p = size(x)
   xw = copy(x)
@@ -220,6 +238,14 @@ function W(::GESVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
 end
+function W(matrixType::Block1DParallel, ::GESVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1)
+  end
+  return ret
+end
 
 # Solver
 import LinearAlgebra.LAPACK.gesv!
@@ -236,6 +262,14 @@ function solve!(::GESVSolver, R::Array{T, 2},
   x::Array{Array{T, 2}, 1}, z::Array{Array{T, 1}, 1},
   w::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   xwx, xwz = calcXWX(xwx, x, w, z)
+  coef, _, ipiv = gesv!(copy(xwx), xwz)
+  return (R, xwx, xw, x, z, w, coef)
+end
+function solve!(matrixType::Block1DParallel, ::GESVSolver, R::Array{T, 2}, 
+  xwx::Array{T, 2}, xw::Array{Array{T, 2},1},
+  x::Array{Array{T, 2}, 1}, z::Array{Array{T, 1}, 1},
+  w::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  xwx, xwz = calcXWX(matrixType, xwx, x, w, z)
   coef, _, ipiv = gesv!(copy(xwx), xwz)
   return (R, xwx, xw, x, z, w, coef)
 end
@@ -262,6 +296,14 @@ function W(::POSVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
 end
+function W(matrixType::Block1DParallel, ::POSVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1)
+  end
+  return ret
+end
 # Solver
 function solve!(::POSVSolver, R::Array{T, 2}, 
   xwx::Array{T, 2}, xw::Array{T, 2},
@@ -276,6 +318,14 @@ function solve!(::POSVSolver, R::Array{T, 2},
   x::Array{Array{T, 2}, 1}, z::Array{Array{T, 1}, 1},
   w::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   xwx, xwz = calcXWX(xwx, x, w, z)
+  _, coef = posv!('U', copy(xwx), xwz)
+  return (R, xwx, xw, x, z, w, coef)
+end
+function solve!(matrixType::Block1DParallel, ::POSVSolver, R::Array{T, 2}, 
+  xwx::Array{T, 2}, xw::Array{Array{T, 2},1},
+  x::Array{Array{T, 2}, 1}, z::Array{Array{T, 1}, 1},
+  w::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  xwx, xwz = calcXWX(matrixType, xwx, x, w, z)
   _, coef = posv!('U', copy(xwx), xwz)
   return (R, xwx, xw, x, z, w, coef)
 end
@@ -292,6 +342,14 @@ function W(::SYSVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
 end
+function W(matrixType::Block1DParallel, ::SYSVSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1)
+  end
+  return ret
+end
 # Solver
 function solve!(::SYSVSolver, R::Array{T, 2}, 
   xwx::Array{T, 2}, xw::Array{T, 2},
@@ -309,6 +367,14 @@ function solve!(::SYSVSolver, R::Array{T, 2},
   coef, _, _ = sysv!('U', copy(xwx), xwz)
   return (R, xwx, xw, x, z, w, coef)
 end
+function solve!(matrixType::Block1DParallel, ::SYSVSolver, R::Array{T, 2}, 
+  xwx::Array{T, 2}, xw::Array{Array{T, 2},1},
+  x::Array{Array{T, 2}, 1}, z::Array{Array{T, 1}, 1},
+  w::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  xwx, xwz = calcXWX(matrixType, xwx, x, w, z)
+  coef, _, _ = sysv!('U', copy(xwx), xwz)
+  return (R, xwx, xw, x, z, w, coef)
+end
 #============================== Least Squares Solvers ==============================#
 #==============================  GELS Solver ==============================#
 #= Solver For Symmetric Indefinite Matrices =#
@@ -322,6 +388,14 @@ end
 function W(::GELSSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
+end
+function W(matrixType::Block1DParallel, ::GELSSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
+  end
+  return ret
 end
 
 # Solver
@@ -356,6 +430,15 @@ function W(::GELSYSolver, distrib::AbstractDistribution, link::AbstractLink, mu:
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
 end
+function W(::GELSYSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
+  end
+  return ret
+end
+
 # Solver
 function solve!(::GELSYSolver, R::Array{T, 2}, 
   xwx::Array{T, 2}, xw::Array{T, 2},

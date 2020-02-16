@@ -162,3 +162,18 @@ binomial_distrib_odds_power_link_1.coefficients |> println
 bernoulliLogit.coefficients |> println
 bernoulliOddsPower0.coefficients |> println
 
+# Parallel Block Algorithm
+block_gamma_distrib_log_link = glm(Block1D(), energyBlockX, energyBlockY, GammaDistribution(), LogLink())
+block_parallel_gamma_distrib_log_link = glm(Block1DParallel(), energyBlockX, energyBlockY, GammaDistribution(), LogLink())
+
+
+block_binomial_oddspower_link_1 = glm(Block1D(), educationBlockX, educationBlockY, BinomialDistribution(), OddsPowerLink(2.0))
+block_parallel_binomial_oddspower_link_1 = glm(Block1DParallel(), educationBlockX, educationBlockY, BinomialDistribution(), OddsPowerLink(2.0))
+
+
+block_logit_link_bernoulli_distrib = glm(Block1D(), creditBlockX, creditBlockY, BinomialDistribution(), LogitLink())
+block_parallel_logit_link_bernoulli_distrib = glm(Block1DParallel(), creditBlockX, creditBlockY, BinomialDistribution(), LogitLink())
+
+
+
+

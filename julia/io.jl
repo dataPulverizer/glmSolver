@@ -1,6 +1,10 @@
 #=
   Binary IO
 =#
+
+using Base.Threads: @threads, nthreads, threadid
+using LinearAlgebra.BLAS: set_num_threads
+
 """
   Function to write 2D array to disk
 """
