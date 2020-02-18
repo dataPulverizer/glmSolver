@@ -8,10 +8,14 @@ import glmsolverd.common;
 import glmsolverd.apply;
 import glmsolverd.link;
 import glmsolverd.distributions;
+import glmsolverd.tools;
 
 import std.conv: to;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
+
+import std.parallelism;
+import std.range : iota;
 
 //import std.stdio: writeln;
 /*
@@ -577,6 +581,8 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ColumnVector!(T) mu, ColumnVector!(T) eta);
   BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
               BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
   /* 
     Solver for calculating coefficients and preparing either R or xwx 
      for later calculating covariance matrix
@@ -589,6 +595,10 @@ interface AbstractSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
               ref ColumnVector!(T) coef);
+  void solve(Block1DParallel dataType, ref Matrix!(T, layout) R, 
+              ref Matrix!(T, layout) xwx, ref Matrix!(T, layout) xw,
+              ref BlockMatrix!(T, layout) x, ref BlockColumnVector!(T) z,
+              ref BlockColumnVector!(T) w, ref ColumnVector!(T) coef);
   /* Covariance calculation happens at the end of the regression function */
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, 
                          Matrix!(T, layout) R, Matrix!(T, layout) xwx, 
@@ -623,6 +633,15 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
       ret[i] = W(distrib, link, mu[i], eta[i]);
     return ret;
   }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -652,10 +671,35 @@ class VanillaSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, 
     }
     coef = _solve(xwx, xwz);
   }
+  void solve(Block1DParallel dataType, ref Matrix!(T, layout) R, 
+              ref Matrix!(T, layout) xwx, ref Matrix!(T, layout) xw,
+              ref BlockMatrix!(T, layout) x, ref BlockColumnVector!(T) z,
+              ref BlockColumnVector!(T) w, ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) xwz = zerosColumn!(T)(p);
+
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+    auto XWZ = taskPool.workerLocalStorage(zerosColumn!(T)(p));
+
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto blockXW = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(blockXW, x[i]);
+      XWZ.get += mult_!(T, layout, CblasTrans)(blockXW, z[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
+    
+    foreach (_xwz; XWZ.toRange)
+      xwz += _xwz;
+    
+    coef = _solve(xwx, xwz);
+  }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
-    //writeln("Debug Vanilla Solver: cov()");
-    //return inv(xwx);
     return inverse.inv(xwx);
   }
 }
@@ -961,7 +1005,6 @@ class GELSDSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, la
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
     xwx = mult_!(T, layout, CblasTrans)(xw, xw.dup);
-    //return inv(xwx);
     return inverse.inv(xwx);
   }
 }
@@ -1008,6 +1051,15 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
       ret[i] = W(distrib, link, mu[i], eta[i]);
     return ret;
   }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -1016,8 +1068,6 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
     auto xwz = mult_!(T, layout, CblasTrans)(xw, z);
-    //import std.stdio : writeln;
-    //writeln("xwz: \n", xwz);
     coef = _gesv_(xwx, xwz);
   }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
@@ -1037,9 +1087,35 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     }
     coef = _gesv_(xwx, XWZ);
   }
+  void solve(Block1DParallel dataType, ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) xwz = zerosColumn!(T)(p);
+
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+    auto XWZ = taskPool.workerLocalStorage(zerosColumn!(T)(p));
+
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+      XWZ.get += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
+    
+    foreach (_xwz; XWZ.toRange)
+      xwz += _xwz;
+    
+    coef = _gesv_(xwx, xwz);
+  }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
-    //return inv(xwx);
     return inverse.inv(xwx);
   }
 }
@@ -1082,6 +1158,15 @@ class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
       ret[i] = W(distrib, link, mu[i], eta[i]);
     return ret;
   }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -1109,9 +1194,35 @@ class POSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     }
     coef = _posv_(xwx, XWZ);
   }
+  void solve(Block1DParallel dataType, ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x, ref BlockColumnVector!(T) z,
+              ref BlockColumnVector!(T) w, ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) xwz = zerosColumn!(T)(p);
+
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+    auto XWZ = taskPool.workerLocalStorage(zerosColumn!(T)(p));
+    
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)( tmp , x[i]);
+      XWZ.get += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
+    
+    foreach (_xwz; XWZ.toRange)
+      xwz += _xwz;
+    
+    coef = _posv_(xwx, xwz);
+  }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
-    //return inv(xwx);
     return inverse.inv(xwx);
   }
 }
@@ -1154,6 +1265,15 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
       ret[i] = W(distrib, link, mu[i], eta[i]);
     return ret;
   }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
   void solve(ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w, 
@@ -1181,9 +1301,36 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     }
     coef = _sysv_(xwx, XWZ);
   }
+  void solve(Block1DParallel dataType, ref Matrix!(T, layout) R, ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w, 
+              ref ColumnVector!(T) coef)
+  {
+    ulong p = coef.length;
+
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) xwz = zerosColumn!(T)(p);
+
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+    auto XWZ = taskPool.workerLocalStorage(zerosColumn!(T)(p));
+
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+      XWZ.get += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
+    
+    foreach (_xwz; XWZ.toRange)
+      xwz += _xwz;
+    
+    coef = _sysv_(xwx, xwz);
+  }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
   {
-    //return inv(xwx);
     return inverse.inv(xwx);
   }
 }

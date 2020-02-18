@@ -6,12 +6,16 @@ module glmsolverd.link;
 import glmsolverd.arrays;
 import glmsolverd.common;
 import glmsolverd.apply;
+import glmsolverd.tools;
 
 import std.conv: to;
 import std.algorithm: min, max, fold;
 import std.math: atan, exp, expm1, log, modf, fabs, fmax, fmin, cos, tan, PI;
 import std.mathspecial : normalDistribution, normalDistributionInverse;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
+
+import std.parallelism;
+import std.range : iota;
 
 alias fmin min;
 alias fmax max;
@@ -35,6 +39,12 @@ if(isFloatingPoint!T)
   enum ceps = 1 - T.epsilon;
 }
 /******************************************* Link Functions *********************************/
+
+/*
+  It might be best to make this an abstract class so that you can have
+  prototype methods with bodies without constantly repeating them later
+  but you'll need to add override to all the child class methods.
+*/
 interface AbstractLink(T)
 {
   ColumnVector!T linkfun(ColumnVector!T mu);
@@ -48,6 +58,10 @@ interface AbstractLink(T)
   BlockColumnVector!(T) linkfun(BlockColumnVector!(T) mu);
   BlockColumnVector!(T) deta_dmu(BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
   BlockColumnVector!(T) linkinv(BlockColumnVector!(T) eta);
+
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu);
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta);
 }
 
 //mixin template BlockMethodGubbings(T)
@@ -140,6 +154,32 @@ class LogLink(T): AbstractLink!T
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class IdentityLink(T) : AbstractLink!(T)
 {
@@ -201,6 +241,32 @@ class IdentityLink(T) : AbstractLink!(T)
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class InverseLink(T) : AbstractLink!(T)
 {
@@ -258,6 +324,32 @@ class InverseLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }
@@ -322,6 +414,32 @@ class LogitLink(T) : AbstractLink!(T)
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class CauchitLink(T) : AbstractLink!(T)
 {
@@ -382,6 +500,32 @@ class CauchitLink(T) : AbstractLink!(T)
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class ProbitLink(T) : AbstractLink!(T)
 {
@@ -439,6 +583,32 @@ class ProbitLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }
@@ -506,6 +676,32 @@ class PowerLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }
@@ -584,6 +780,32 @@ class OddsPowerLink(T) : AbstractLink!(T)
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class LogComplementLink(T) : AbstractLink!(T)
 {
@@ -641,6 +863,32 @@ class LogComplementLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }
@@ -704,6 +952,32 @@ class LogLogLink(T) : AbstractLink!(T)
       ret[i] = linkinv(eta[i]);
     return ret;
   }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
 }
 class ComplementaryLogLogLink(T) : AbstractLink!(T)
 {
@@ -761,6 +1035,32 @@ class ComplementaryLogLogLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }
@@ -828,6 +1128,32 @@ class NegativeBinomialLink(T) : AbstractLink!(T)
     ulong n = eta.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = linkinv(eta[i]);
+    return ret;
+  }
+
+  /* For parallel block algorithms */
+  BlockColumnVector!(T) linkfun(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = linkfun(mu[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) deta_dmu(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = deta_dmu(mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) linkinv(Block1DParallel dataType, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = eta.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = linkinv(eta[i]);
     return ret;
   }

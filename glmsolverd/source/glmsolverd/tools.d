@@ -12,6 +12,9 @@ import std.math: fabs;
 import std.conv: to;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
 
+import std.parallelism;
+import std.range : iota;
+
 /******************************************* Weight & Systematic Component *********************************/
 auto Z(T)(AbstractLink!T link, T y, T mu, T eta)
 {
@@ -31,6 +34,16 @@ auto Z(T)(AbstractLink!T link, BlockColumnVector!T y,
     ret[i] = Z(link, y[i], mu[i], eta[i]);
   return ret;
 }
+auto Z(T)(Block1DParallel dataType, AbstractLink!T link, BlockColumnVector!T y, 
+          BlockColumnVector!T mu, BlockColumnVector!T eta)
+{
+  ulong nBlocks = y.length;
+  BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+  foreach(i; taskPool.parallel(iota(nBlocks)))
+    ret[i] = Z(link, y[i], mu[i], eta[i]);
+  return ret;
+}
+
 
 /* Weights Vector */
 auto W(T)(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
@@ -163,3 +176,4 @@ if(isFloatingPoint!T)
 interface AbstractMatrixType {}
 class RegularData : AbstractMatrixType {}
 class Block1D : AbstractMatrixType {}
+class Block1DParallel : AbstractMatrixType {}

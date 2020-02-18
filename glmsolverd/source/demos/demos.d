@@ -321,6 +321,90 @@ void blockGLMDemo()
   writeln("Regular Model\n", gammaModel);
 }
 
+/* Compares block and parallel block algorithm output */
+void testParallel()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+
+  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  
+  auto blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
+        energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new SYSVSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", blockGLMModel);
+
+  auto blockParallelGLMModel = glm!(double)(new Block1DParallel(),
+        energyBlockX, energyBlockY, new GaussianDistribution!(double)(),
+        new LogLink!(double)(), new SYSVSolver!(double)(),
+        new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", blockParallelGLMModel);
+}
+
+
+
+void parallelBlockGLMDemo()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+
+  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  auto blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
+        energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", blockGLMModel);
+  
+  auto blockParallelGLMModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", blockParallelGLMModel);
+  
+  auto energyX = readMatrix!(double)(path ~ "energyX.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  auto glmModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", glmModel);
+  
+  auto educationBlockX = readBlockMatrix!(double)(path ~ "educationBlockX/");
+  auto educationBlockY = readBlockMatrix!(double)(path ~ "educationBlockY/");
+  
+  auto eduBlockModel = glm!(double)(new Block1D(), educationBlockX, 
+        educationBlockY, new BinomialDistribution!(double)(), 
+        new LogitLink!(double)(), new VanillaSolver!(double)(), 
+        new GETRIInverse!(double)());
+  writeln("Block Model\n", eduBlockModel);
+
+  auto eduParallelBlockModel = glm!(double)(new Block1DParallel(), educationBlockX, 
+        educationBlockY, new BinomialDistribution!(double)(), 
+        new LogitLink!(double)(), new VanillaSolver!(double)(), 
+        new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", eduParallelBlockModel);
+
+  auto educationX = readMatrix!(double)(path ~ "educationX.bin");
+  auto educationY = readMatrix!(double)(path ~ "educationY.bin");
+  auto eduModel = glm!(double)(new RegularData(), educationX, 
+        educationY, new BinomialDistribution!(double)(), 
+        new LogitLink!(double)(), new VanillaSolver!(double)(), 
+        new GETRIInverse!(double)());
+  writeln("Regular Model\n", eduModel);
+
+  auto gammaBlockModel = glm!(double)(new Block1D(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", gammaBlockModel);
+
+  auto gammaParallelBlockModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", gammaParallelBlockModel);
+  
+  auto gammaModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", gammaModel);
+}
+
 /* Test distribution function with block vectors and matrices */
 void distribBlockDemo()
 {

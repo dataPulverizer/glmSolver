@@ -6,10 +6,14 @@ module glmsolverd.distributions;
 import glmsolverd.apply;
 import glmsolverd.arrays;
 import glmsolverd.common;
+import glmsolverd.tools;
 
 import std.conv: to;
 import std.math: log;
 import std.typecons: Tuple, tuple;
+
+import std.parallelism;
+import std.range : iota;
 
 /******************************************* Distributions *********************************/
 template initType(T)
@@ -40,7 +44,6 @@ abstract class AbstractDistribution(T)
     ulong n = _y.length;
     BlockColumnVector!(T) y = new ColumnVector!(T)[n];
     BlockColumnVector!(T) mu = new ColumnVector!(T)[n];
-    import std.stdio : writeln;
     for(ulong i = 0; i < n; ++i)
     {
       y[i] = cast(ColumnVector!(T))_y[i];
@@ -48,9 +51,49 @@ abstract class AbstractDistribution(T)
     }
     return tuple(y, mu, wts);
   }
+  initType!(BlockColumnVector!(T)) init(Block1DParallel dataType, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[nBlocks];
+    BlockColumnVector!(T) mu = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      y[i] = cast(ColumnVector!(T))_y[i];
+      mu[i] = (cast(ColumnVector!(T))_y[i]).dup;
+    }
+    return tuple(y, mu, wts);
+  }
   BlockColumnVector!(T) variance(BlockColumnVector!(T) mu);
+  
+  //BlockColumnVector!(T) variance(Block1DParallel dataType, BlockColumnVector!(T) mu);
+  BlockColumnVector!(T) variance(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  
   BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y);
   BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts);
+
+  BlockColumnVector!(T) devianceResiduals(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) devianceResiduals(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
 }
 T y_log_y(T)(T y, T x)
 {
@@ -62,7 +105,6 @@ template BlockDistributionGubbings()
   enum string BlockDistributionGubbings = q{
   override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
   {
-    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
@@ -71,7 +113,6 @@ template BlockDistributionGubbings()
   }
   override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
   {
-    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2) => devianceResiduals(x1, x2) )(mu, y);
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
@@ -80,7 +121,6 @@ template BlockDistributionGubbings()
   }
   override BlockColumnVector!(T) devianceResiduals(BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
   {
-    //return map!( (ColumnVector!(T) x1, ColumnVector!(T) x2, ColumnVector!(T) x3) => devianceResiduals(x1, x2, x3) )(mu, y, wts);
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
@@ -208,6 +248,65 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
     }
     return tuple(y, mu, wts);
   }
+  override initType!(BlockColumnVector!T) init(Block1DParallel dataType, BlockMatrix!T _y, BlockColumnVector!T wts)
+  {
+    BlockColumnVector!(T) y; BlockColumnVector!T mu;
+    bool hasWeights = wts.length > 0; auto nBlocks = _y.length;
+    if(_y[0].ncol == 1)
+    {
+      y = new ColumnVector!(T)[nBlocks];
+
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        y[i] = cast(ColumnVector!(T))_y[i];
+      
+      if(wts.length == 0)
+      {
+        mu = new ColumnVector!(T)[nBlocks];
+        foreach(i; taskPool.parallel(iota(nBlocks)))
+        {
+          mu[i] = y[i].dup; ulong b = y[i].length;
+          for(ulong j = 0; j < b; ++j)
+          {
+            mu[i][j] = (mu[i][j] + cast(T)0.5)/2;
+          }
+        }
+      }else{
+        y = new ColumnVector!(T)[nBlocks];
+        mu = new ColumnVector!(T)[nBlocks];
+
+        foreach(i; taskPool.parallel(iota(nBlocks)))
+        {
+          ulong b = _y[i].ncol;
+          y[i] = cast(ColumnVector!(T))_y[i];
+          mu[i] = y[i].dup;
+          for(ulong j = 0; j < b; ++j)
+          {
+            mu[i][j] = (wts[i][j] * mu[i][j] + cast(T)0.5)/(wts[i][j] + 1);
+          }
+        }
+      }
+    }else if(_y[0].ncol > 1)
+    {
+      y = new ColumnVector!(T)[nBlocks];
+      mu = new ColumnVector!(T)[nBlocks];
+      wts = new ColumnVector!(T)[nBlocks];
+
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+      {
+        ulong m = _y[i].nrow;
+        y[i] = zerosColumn!(T)(m);
+        mu[i] = zerosColumn!(T)(m);
+        wts[i] = zerosColumn!(T)(m);
+        for(ulong j = 0; j < m; ++j)
+        {
+          wts[i][j] = _y[i][j, 0] + _y[i][j, 1];
+          y[i][j] = _y[i][j, 0]/wts[i][j];
+          mu[i][j] = (wts[i][j] * y[i][j] + 0.5)/(wts[i][j] + 1);
+        }
+      }
+    }
+    return tuple(y, mu, wts);
+  }
   //mixin BlockDistributionGubbings!();
   override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
   {
@@ -215,6 +314,14 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = variance(mu[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) variance(Block1DParallel dataType, BlockColumnVector!(T) mu)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = variance(mu[i]);
     return ret;
   }
@@ -233,6 +340,22 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
+      ret[i] = devianceResiduals(mu[i], y[i], wts[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) y)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = devianceResiduals(mu[i], y[i]);
+    return ret;
+  }
+  override BlockColumnVector!(T) devianceResiduals(Block1DParallel dataType, BlockColumnVector!(T) mu, BlockColumnVector!(T) y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
       ret[i] = devianceResiduals(mu[i], y[i], wts[i]);
     return ret;
   }
@@ -295,10 +418,20 @@ class PoissonDistribution(T) : AbstractDistribution!(T)
       mu[i] = map!( (T m) => m + 0.1 )(y[i]);
     return tuple(y, mu, wts);
   }
+  override initType!(BlockColumnVector!(T)) init(Block1DParallel dataType, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[nBlocks];
+    BlockColumnVector!(T) mu = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      y[i] = cast(ColumnVector!(T))_y[i];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      mu[i] = map!( (T m) => m + 0.1 )(y[i]);
+    return tuple(y, mu, wts);
+  }
   //mixin BlockDistributionGubbings!();
   override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
   {
-    //return map!( (ColumnVector!(T) x) => variance(x) )(mu);
     ulong n = mu.length;
     BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
     for(ulong i = 0; i < n; ++i)
@@ -462,6 +595,20 @@ class NegativeBinomialDistribution(T) : AbstractDistribution!(T)
       y[i] = cast(ColumnVector!(T))_y[i];
     for(ulong i = 0; i < n; ++i)
       mu[i] = map!( (T x) => x == 0 ? tmp : x)(y[i]);
+    return tuple(y, mu, wts);
+  }
+  override initType!(BlockColumnVector!(T)) init(Block1DParallel dataType, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[nBlocks];
+    BlockColumnVector!(T) mu = new ColumnVector!(T)[nBlocks];
+    //T tmp = 1/6;
+    auto tmp = taskPool.workerLocalStorage!(double)(1/6);
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      y[i] = cast(ColumnVector!(T))_y[i];
+      mu[i] = map!( (T x) => x == 0 ? tmp.get : x)(y[i]);
+    }
     return tuple(y, mu, wts);
   }
   override T variance(T mu)

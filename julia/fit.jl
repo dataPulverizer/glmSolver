@@ -384,6 +384,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Arr
               offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
               weights = Array{Array{T, 1}, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
+  #= Set BLAS threads =#
   set_num_threads(1)
   y, mu, weights = init!(matrixType, distrib, y, weights)
   eta = linkfun(matrixType, link, mu)
@@ -472,6 +473,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Arr
     end
 
     dev = T(0)
+    # Parallel Reduction Required
     for i in 1:nBlocks
       dev += sum(residuals[i])
     end
@@ -523,6 +525,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Arr
 
       # dev = sum(residuals)
       dev = T(0)
+      # Parallel Reduction Required
       for i in 1:nBlocks
         dev += sum(residuals[i])
       end
@@ -571,7 +574,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Arr
     Cov .*= phi
   end
 
-  set_num_threads(1)
+  set_num_threads(nthreads())
 
   return GLMBlock1D(link, distrib, phi, coef, Cov, iter, relErr, absErr, converged, 
              dev, residuals)

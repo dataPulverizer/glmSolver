@@ -67,17 +67,19 @@ can be tried out. Link Functions:
     - [x] (b) Julia.
   The Names used `GETRIInverse`, `POTRIInverse`, `SYTRFInverse`, `GESVDInverse`, `GESVSolver`, `POSVSolver`, `SYSVSolver`, `GELSSolver`, `GELSYSolver`, `GELSSSolver`, `GELSDSolver`.
   - [x] iii. Dispersion (phi) - **Done** function which you divide the `(XWX)^-1` matrix by to get the covariance matrix - **Done**. You will need to use page 110 of the Wood's GAM book, note that the Binomial and Poisson Distribution has `phi = 1`.
-  - [ ] v. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
+  - [ ] iv. Implement blocking matrix techniques using the techniques used in Golub's and Van Loan's Matrix Computations book.
     - [x] 1. 1-D block representation of matrices.
     - [ ] 2. 2-D block representation of matrices.
-  - [ ] iv. Implement parallel solver algorithms.
-  - [ ] v. Include weights simplification for when `(link.deta_dmu(mu, eta)^2) == distrib.variance(mu)^-1` for various link/distribution combinations.
-  - [ ] vi. Include gradient descent solver.
-  - [ ] vii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
-  - [ ] viii. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
-  - [ ] ix. Implement L-BFGS solver options.
-  - [ ] x.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
-  - [ ] xi. Do you need a sparse solver? Investigate.
+  - [ ] v. Implement parallel solver algorithms.
+    - [X] 1. 1-D block representation of matrices.
+    - [ ] 2. 2-D block representation of matrices.
+  - [ ] vi. Include weights simplification for when `(link.deta_dmu(mu, eta)^2) == distrib.variance(mu)^-1` for various link/distribution combinations.
+  - [ ] vii. Include gradient descent solver.
+  - [ ] viii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
+  - [ ] ix. Compare your algorithm's performance with other implementations R, Python, Julia, H20, Scala Spark. If can show better or equal performance to all of these that would be a good start.
+  - [ ] x. Implement L-BFGS solver options.
+  - [ ] xi.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking.
+  - [ ] xii. Do you need a sparse solver? Investigate.
 - [ ] 3. Implement memory and disk blocked matrix structure in Julia & D and
          integrate them with your current algorithm. Creating a generic interface that could contend with any data structure with the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data structures.

@@ -6,5 +6,7 @@ void main()
   //blockMatrixDemo();
   //linkBlockDemo();
   //distribBlockDemo();
-  blockGLMDemo();
+  //blockGLMDemo();
+  //testParallel();
+  parallelBlockGLMDemo();
 }
