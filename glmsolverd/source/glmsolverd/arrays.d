@@ -412,6 +412,19 @@ if(isNumeric!T)
     }
     return repr;
   }
+  ColumnVector!T opBinary(string op)(T rhs)
+  {
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      for(ulong i = 0; i < data.length; ++i)
+        mixin("data[i] = data[i] " ~ op ~ " rhs;");
+      return this;
+    } else static assert(0, "Operator " ~ op ~ " not implemented");
+  }
+  ColumnVector!T opBinaryRight(string op)(T lhs)
+  {
+    return opBinary!(op)(lhs);
+  }
   ColumnVector!T opBinary(string op)(ColumnVector!T rhs)
   {
     static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
@@ -420,6 +433,7 @@ if(isNumeric!T)
       auto ret = new ColumnVector!T(rhs.data.dup);
       for(ulong i = 0; i < data.length; ++i)
         mixin("ret.data[i] = ret.data[i] " ~ op ~ " data[i];");
+      return this;
       return ret;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }
@@ -449,6 +463,19 @@ if(isNumeric!T)
     string repr = format("RowVector(%d)", len()) ~ "\n" ~ to!string(data) ~ "\n";
     return repr;
   }
+  RowVector!T opBinary(string op)(T rhs)
+  {
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      for(ulong i = 0; i < data.length; ++i)
+        mixin("data[i] = data[i] " ~ op ~ " rhs;");
+      return this;
+    } else static assert(0, "Operator " ~ op ~ " not implemented");
+  }
+  RowVector!T opBinaryRight(string op)(T lhs)
+  {
+    return opBinary!(op)(lhs);
+  }
   RowVector!T opBinary(string op)(RowVector!T rhs)
   {
     static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
@@ -456,7 +483,7 @@ if(isNumeric!T)
       assert(data.len == rhs.data.len, "Vector lengths are not the same.");
       auto ret = RowVector!T(rhs.data.dup);
       for(ulong i = 0; i < data.len; ++i)
-        mixin("ret.data[i] = ret.data[i] "~ op ~ " data[i]");
+        mixin("ret.data[i] = ret.data[i] "~ op ~ " data[i];");
       return ret;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }

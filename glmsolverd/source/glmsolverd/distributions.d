@@ -251,7 +251,8 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
   override initType!(BlockColumnVector!T) init(Block1DParallel dataType, BlockMatrix!T _y, BlockColumnVector!T wts)
   {
     BlockColumnVector!(T) y; BlockColumnVector!T mu;
-    bool hasWeights = wts.length > 0; auto nBlocks = _y.length;
+    bool hasWeights = wts.length > 0;
+    immutable(ulong) nBlocks = _y.length;
     if(_y[0].ncol == 1)
     {
       y = new ColumnVector!(T)[nBlocks];

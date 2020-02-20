@@ -6,6 +6,7 @@ module glmsolverd.common;
 import glmsolverd.arrays;
 
 import std.random;
+import std.mathspecial : normalDistributionInverse;
 import std.algorithm: fold;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
 
@@ -182,5 +183,20 @@ BlockColumnVector!(T) createRandomBlockColumnVector(T = double)(ulong m, ulong n
   for(ulong i = 0; i < nBlocks; ++i)
     ret[i] = createRandomColumnVector(m);
   return ret;
+}
+
+/* Sample from standard normal distribution */
+ColumnVector!T sampleStandardNormal(T = double)(ulong n)
+{
+  Mt19937_64 gen;
+  gen.seed(unpredictableSeed);
+
+  auto data = cast(T*)malloc(T.sizeof*n);
+  if(data == null)
+    assert(0, "Array Allocation Failed!");
+  
+  for(int i = 0; i < n; ++i)
+    data[i] = normalDistributionInverse(uniform01!(T)(gen));
+  return new ColumnVector!T(data[0..n]);
 }
 

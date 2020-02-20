@@ -8,5 +8,6 @@ void main()
   //distribBlockDemo();
   //blockGLMDemo();
   //testParallel();
-  parallelBlockGLMDemo();
+  //parallelBlockGLMDemo();
+  gradientDescentGLMDemo();
 }

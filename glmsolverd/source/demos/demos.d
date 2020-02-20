@@ -328,16 +328,33 @@ void testParallel()
 
   auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
   auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+
+  /* For credit data - Binomial data */
+  auto creditBlockX = readBlockMatrix!(double)(path ~ "creditBlockX/");
+  auto creditBlockY = readBlockMatrix!(double)(path ~ "creditBlockY/");
+
+  if(false)
+  {
+    auto blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
+          energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
+          new SYSVSolver!(double)(), new GETRIInverse!(double)());
+    writeln("Block Model\n", blockGLMModel);
+    
+    auto blockParallelGLMModel = glm!(double)(new Block1DParallel(),
+          energyBlockX, energyBlockY, new GaussianDistribution!(double)(),
+          new LogLink!(double)(), new SYSVSolver!(double)(),
+          new GETRIInverse!(double)());
+    writeln("Parallel Block Model\n", blockParallelGLMModel);
+  }
   
-  auto blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
-        energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
-        new SYSVSolver!(double)(), new GETRIInverse!(double)());
+  auto blockGLMModel = glm!(double)(new Block1D(), creditBlockX, 
+        creditBlockY, new BinomialDistribution!(double)(), new LogitLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Block Model\n", blockGLMModel);
 
-  auto blockParallelGLMModel = glm!(double)(new Block1DParallel(),
-        energyBlockX, energyBlockY, new GaussianDistribution!(double)(),
-        new LogLink!(double)(), new SYSVSolver!(double)(),
-        new GETRIInverse!(double)());
+  auto blockParallelGLMModel = glm!(double)(new Block1DParallel(), creditBlockX, 
+        creditBlockY, new BinomialDistribution!(double)(), new LogitLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Parallel Block Model\n", blockParallelGLMModel);
 }
 
@@ -349,6 +366,18 @@ void parallelBlockGLMDemo()
 
   auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
   auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  auto creditBlockX = readBlockMatrix!(double)(path ~ "creditBlockX/");
+  auto creditBlockY = readBlockMatrix!(double)(path ~ "creditBlockY/");
+  auto educationBlockX = readBlockMatrix!(double)(path ~ "educationBlockX/");
+  auto educationBlockY = readBlockMatrix!(double)(path ~ "educationBlockY/");
+  
+  auto energyX = readMatrix!(double)(path ~ "energyX.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  auto creditX = readMatrix!(double)(path ~ "creditX.bin");
+  auto creditY = readMatrix!(double)(path ~ "creditY.bin");
+  auto educationX = readMatrix!(double)(path ~ "educationX.bin");
+  auto educationY = readMatrix!(double)(path ~ "educationY.bin");
+
   auto blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
         energyBlockY, new GaussianDistribution!(double)(), new LogLink!(double)(),
         new VanillaSolver!(double)(), new GETRIInverse!(double)());
@@ -359,16 +388,44 @@ void parallelBlockGLMDemo()
         new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Parallel Block Model\n", blockParallelGLMModel);
   
-  auto energyX = readMatrix!(double)(path ~ "energyX.bin");
-  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
   auto glmModel = glm!(double)(new RegularData(), energyX, 
         energyY, new GaussianDistribution!(double)(), new LogLink!(double)(),
         new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Regular Model\n", glmModel);
+
+  /***************************************************************/
+  /* Identity Link for testing canonical */
+  blockGLMModel = glm!(double)(new Block1D(), energyBlockX, 
+        energyBlockY, new GaussianDistribution!(double)(), new IdentityLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", blockGLMModel);
   
-  auto educationBlockX = readBlockMatrix!(double)(path ~ "educationBlockX/");
-  auto educationBlockY = readBlockMatrix!(double)(path ~ "educationBlockY/");
+  blockParallelGLMModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GaussianDistribution!(double)(), new IdentityLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", blockParallelGLMModel);
+
+  glmModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GaussianDistribution!(double)(), new IdentityLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", glmModel);
+  /***************************************************************/
+  /* Credit Dataset */
+  blockGLMModel = glm!(double)(new Block1D(), creditBlockX, 
+        creditBlockY, new BinomialDistribution!(double)(), new LogitLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Block Model\n", blockGLMModel);
   
+  blockParallelGLMModel = glm!(double)(new Block1DParallel(), creditBlockX, 
+        creditBlockY, new BinomialDistribution!(double)(), new LogitLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Parallel Block Model\n", blockParallelGLMModel);
+
+  glmModel = glm!(double)(new RegularData(), creditX, 
+        creditY, new BinomialDistribution!(double)(), new LogitLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", glmModel);
+  /***************************************************************/
   auto eduBlockModel = glm!(double)(new Block1D(), educationBlockX, 
         educationBlockY, new BinomialDistribution!(double)(), 
         new LogitLink!(double)(), new VanillaSolver!(double)(), 
@@ -381,8 +438,6 @@ void parallelBlockGLMDemo()
         new GETRIInverse!(double)());
   writeln("Parallel Block Model\n", eduParallelBlockModel);
 
-  auto educationX = readMatrix!(double)(path ~ "educationX.bin");
-  auto educationY = readMatrix!(double)(path ~ "educationY.bin");
   auto eduModel = glm!(double)(new RegularData(), educationX, 
         educationY, new BinomialDistribution!(double)(), 
         new LogitLink!(double)(), new VanillaSolver!(double)(), 
@@ -403,7 +458,39 @@ void parallelBlockGLMDemo()
         energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
         new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Regular Model\n", gammaModel);
+  /***************************************************************/
+  /* Gradient Descent */
+  gammaModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new GradientDescent!(double)(1E-5), new GETRIInverse!(double)(),
+        new Control!(double)(50));
+  writeln("Gradient Descent solver with regular data \n", gammaModel);
 }
+
+
+void gradientDescentGLMDemo()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+
+  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  
+  auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  
+  auto gammaModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Regular Model\n", gammaModel);
+  /***************************************************************/
+  /* Gradient Descent */
+  gammaModel = glm!(double)(new RegularData(), energyX, 
+        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new GradientDescent!(double)(-5E-4), new GETRIInverse!(double)(),
+        new Control!(double)(6000));
+  writeln("Gradient Descent solver with regular data \n", gammaModel);
+}
+
 
 /* Test distribution function with block vectors and matrices */
 void distribBlockDemo()

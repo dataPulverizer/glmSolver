@@ -108,7 +108,7 @@ if(isFloatingPoint!T)
   immutable(bool) printError;
   immutable(bool) printCoef;
   immutable(T) minstep;
-  this(T _epsilon = 1E-7, int _maxit = 25, 
+  this(int _maxit = 25, T _epsilon = 1E-7,
       bool _printError = false, bool _printCoef = false, 
       T _minstep = 1E-5)
   {

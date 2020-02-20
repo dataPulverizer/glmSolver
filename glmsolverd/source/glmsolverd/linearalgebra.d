@@ -1106,10 +1106,10 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
       XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
       XWZ.get += mult_!(T, layout, CblasTrans)(tmp, z[i]);
     }
-    foreach (_xwx; XWX.toRange)
+    foreach(_xwx; XWX.toRange)
       xwx += _xwx;
     
-    foreach (_xwz; XWZ.toRange)
+    foreach(_xwz; XWZ.toRange)
       xwz += _xwz;
     
     coef = _gesv_(xwx, xwz);
@@ -1119,7 +1119,7 @@ class GESVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
     return inverse.inv(xwx);
   }
 }
-/**************************************** POSV Solver writeln***************************************/
+/**************************************** POSV Solver writeln ***************************************/
 /*
   Cholesky Decomposition Solver For Positive Definite Matrices
 */
@@ -1335,4 +1335,213 @@ class SYSVSolver(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractSolver!(T, lay
   }
 }
 
+/**************************************** Gradient Descent Solvers ***************************************/
 
+interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
+{
+  private:
+  ColumnVector!(T) pgradient_(AbstractDistribution!T distrib, AbstractLink!T link,
+      ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu, 
+      ColumnVector!T eta);
+
+  public:
+  /* Weights */
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta);
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta);
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta);
+
+  /* Gradients */
+
+  /* Returns the average gradient calculated using (n - p) */
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link,
+              ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+              ColumnVector!T eta);
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) y, BlockMatrix!(T, layout) x,
+              BlockColumnVector!(T) mu, BlockColumnVector!T eta);
+  ColumnVector!(T) pgradient(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) y, 
+              BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+              BlockColumnVector!T eta);
+
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef);
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef);
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef);
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w);
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
+}
+
+/*
+  Reference is the website and article by Sebastian Ruder:
+  An overview of gradient descent optimization algorithms
+  Website: https://ruder.io/optimizing-gradient-descent/index.html
+  Article (Arxiv): https://arxiv.org/pdf/1609.04747.pdf
+*/
+class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  private:
+  T learningRate;
+  ColumnVector!(T) pgradient_(AbstractDistribution!T distrib, AbstractLink!T link,
+      ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu, 
+      ColumnVector!T eta)
+  {
+    ulong p = x.ncol;
+    ulong ni = x.nrow;
+    auto grad = zerosColumn!T(p);
+    auto tmp = zerosColumn!(T)(ni);
+    for(ulong i = 0; i < ni; ++i)
+    {
+      tmp[i] = (y[i] - mu[i])/(link.deta_dmu(mu[i], eta[i]) * distrib.variance(mu[i]));
+      for(ulong j = 0; j < p; ++j)
+      {
+        grad[j] += tmp[i] * x[i, j];
+      }
+    }
+    return grad;
+  }
+
+  public:
+  /* Weights */
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
+
+  /* Gradients */
+
+  /* Returns the average gradient calculated using (n - p) */
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link,
+              ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+              ColumnVector!T eta)
+  {
+    ulong p = x.ncol;
+    ulong n = x.nrow;
+    auto grad = pgradient_(distrib, link, y, x, mu, eta);
+    assert(n > p, "Number of items n is not greater than the number of parameters p.");
+    return grad/cast(T)(n - p);
+  }
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) y, BlockMatrix!(T, layout) x,
+              BlockColumnVector!(T) mu, BlockColumnVector!T eta)
+  {
+    ulong nBlocks = y.length; ulong n = 0;
+    ulong p = x[0].ncol;
+    auto grad = zerosColumn!T(p);
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      n += y[i].length;
+      grad += pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
+    }
+    assert(n > p, "Number of items n is not greater than the number of parameters p.");
+    return grad/cast(T)(n - p);
+  }
+  ColumnVector!(T) pgradient(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) y, 
+              BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+              BlockColumnVector!T eta)
+  {
+    ulong nBlocks = y.length;
+    ulong p = x[0].ncol;
+
+    auto nStore = taskPool.workerLocalStorage(cast(ulong)0);
+    auto gradStore = taskPool.workerLocalStorage(zerosColumn!T(p));
+
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      nStore.get += y[i].length;
+      gradStore.get += pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
+    }
+
+    ulong n = 0;
+    auto grad = zerosColumn!T(p);
+    foreach(_n; nStore.toRange)
+      n += _n;
+    foreach(_grad; gradStore.toRange)
+      grad += _grad;
+    
+    assert(n > p, "Number of items n is not greater than the number of parameters p.");
+    return grad/cast(T)(n - p);
+  }
+
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    coef -= learningRate * grad;
+  }
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    coef -= learningRate * grad;
+  }
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
+    coef -= learningRate * grad;
+  }
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  {
+    return inverse.inv(xwx);
+  }
+  this(T _learningRate)
+  {
+    learningRate = _learningRate;
+  }
+}
