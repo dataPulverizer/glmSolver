@@ -21,8 +21,6 @@ import glmsolverd.distributions;
 import glmsolverd.tools;
 import glmsolverd.linearalgebra;
 
-import std.stdio: writeln;
-
 /**************************************** GLM Function ***************************************/
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         RegularData dataType,  Matrix!(T, layout) x, 
@@ -975,6 +973,9 @@ if(isFloatingPoint!T)
       writeln("Iteration: ", iter);
     
     solver.solve(dataType, distrib, link, y, x, mu, eta, coef);
+    //writeln("Iteration: ", iter);
+    //writeln("Coefficient: ", coef.getData, "\n");
+    //writeln("Deviance: ", dev);
     
     if(control.printCoef)
       writeln(coef);

@@ -494,13 +494,20 @@ void gradientDescentGLMDemo()
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
         new GradientDescent!(double)(1E-4), new GETRIInverse!(double)(),
         new Control!(double)(10));
-  writeln("Gradient Descent solver with regular data \n", gammaModel);
+  writeln("Gradient Descent solver with block data \n", gammaModel);
   /* Gradient Descent Block Model */
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
         new GradientDescent!(double)(1E-4), new GETRIInverse!(double)(),
         new Control!(double)(10));
-  writeln("Gradient Descent solver with regular data \n", gammaModel);
+  writeln("Gradient Descent solver with parallel data \n", gammaModel);
+
+  /* Gradient Descent Momentum Block Model */
+  gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new Momentum!(double)(1E-5, 0.90, energyBlockX[0].ncol),
+        new GETRIInverse!(double)(), new Control!(double)(10));
+  writeln("Gradient Descent solver with parallel data \n", gammaModel);
 }
 
 void testBlockIO()

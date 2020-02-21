@@ -433,7 +433,6 @@ if(isNumeric!T)
       auto ret = new ColumnVector!T(rhs.data.dup);
       for(ulong i = 0; i < data.length; ++i)
         mixin("ret.data[i] = ret.data[i] " ~ op ~ " data[i];");
-      return this;
       return ret;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }
