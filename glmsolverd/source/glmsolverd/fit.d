@@ -416,7 +416,7 @@ if(isFloatingPoint!T)
       writeln(coef);
     
     foreach(i; taskPool.parallel(iota(nBlocks)))
-        eta[i] = mult_(x[i], coef);
+      eta[i] = mult_(x[i], coef);
     
     if(doOffset)
     {
@@ -432,7 +432,7 @@ if(isFloatingPoint!T)
       residuals = distrib.devianceResiduals(dataType, mu, y, weights);
     
     auto devStore = taskPool.workerLocalStorage(cast(T)0);
-    dev = cast(T)0;
+    dev = 0;
     foreach(i; taskPool.parallel(iota(nBlocks)))
       devStore.get += sum!T(residuals[i]);
     foreach (_dev; devStore.toRange)
@@ -472,15 +472,15 @@ if(isFloatingPoint!T)
         foreach(i; taskPool.parallel(iota(nBlocks)))
           eta[i] += offset[i];
       }
-      mu = link.linkinv(eta);
+      mu = link.linkinv(dataType, eta);
 
       if(weights.length == 0)
-        residuals = distrib.devianceResiduals(mu, y);
+        residuals = distrib.devianceResiduals(dataType, mu, y);
       else
-        residuals = distrib.devianceResiduals(mu, y, weights);
+        residuals = distrib.devianceResiduals(dataType, mu, y, weights);
       
       devStore = taskPool.workerLocalStorage(cast(T)0);
-      dev = cast(T)0;
+      dev = 0;
       /* Parallel reduction required */
       foreach(i; taskPool.parallel(iota(nBlocks)))
         devStore.get += sum!T(residuals[i]);
@@ -905,6 +905,218 @@ if(isFloatingPoint!T)
     imap!( (T x) => x*phi)(cov);
   }
 
+  auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
+  return obj;
+}
+
+/* For blocked data parallel algorithm */
+/*
+  For now Block1D overload is limited only to the following solvers ...
+
+  GESVSolver
+  POSVSolver
+  SYSVSolver
+*/
+auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
+        Block1DParallel dataType, Matrix!(T, layout)[] x, 
+        Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
+        AbstractGradientSolver!(T) solver, 
+        AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
+        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
+if(isFloatingPoint!T)
+{
+  openblas_set_num_threads(1);
+  auto nBlocks = _y.length;
+  auto init = distrib.init(_y, weights);
+  ColumnVector!(T)[] y = init[0]; 
+  ColumnVector!(T)[] mu = init[1]; weights = init[2];
+  auto eta = link.linkfun(mu);
+
+  auto p = x[0].ncol;
+  //auto coef = sampleStandardNormal!T(p)/p;
+  auto coef = zerosColumn!T(p);
+  auto coefold = zerosColumn!T(p);
+
+  auto absErr = T.infinity;
+  auto relErr = T.infinity;
+  ColumnVector!(T)[] residuals;
+  auto dev = T.infinity;
+  auto devold = T.infinity;
+
+  ulong iter = 1;
+  ulong n = 0;
+  
+  auto nStore = taskPool.workerLocalStorage(0L);
+  /* Parallelised reduction required */
+  foreach(i; taskPool.parallel(iota(nBlocks)))
+    nStore.get += x[i].nrow;
+  foreach (_n; nStore.toRange)
+        n += _n;
+  
+  bool converged, badBreak, doOffset, doWeights;
+
+  if(offset.length != 0)
+    doOffset = true;
+  if(weights.length != 0)
+    doWeights = true;
+  
+  //writeln("Print some values from X");
+  //for(ulong i = 0; i < 10; ++i)
+  //  for(ulong j = 0; j < 10; ++j)
+  //    writeln("X(", i, ", ", j,"): ", x[0][i, j]);
+
+  Matrix!(T, layout) cov, xwx, R;
+  ColumnVector!(T)[] w;
+  Matrix!(T, layout)[] xw;
+  while(relErr > control.epsilon)
+  {
+    if(control.printError)
+      writeln("Iteration: ", iter);
+    
+    solver.solve(dataType, distrib, link, y, x, mu, eta, coef);
+    
+    if(control.printCoef)
+      writeln(coef);
+    
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      eta[i] = mult_(x[i], coef);
+    
+    if(doOffset)
+    {
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        eta[i] += offset[i];
+    }
+    
+    mu = link.linkinv(dataType, eta);
+
+    if(weights.length == 0)
+      residuals = distrib.devianceResiduals(dataType, mu, y);
+    else
+      residuals = distrib.devianceResiduals(dataType, mu, y, weights);
+    
+    dev = 0;
+    auto devStore = taskPool.workerLocalStorage(cast(T)0);
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      devStore.get += sum!T(residuals[i]);
+    foreach (_dev; devStore.toRange)
+      dev += _dev;
+    
+    //if(/* iter % 100 == 0 & */ true)
+    //{
+    //  writeln("Iteration: ", iter);
+    //  writeln("Coefficients: ", coef.getData, "\n");
+    //  writeln("Deviance: ", dev, "\n");
+    //}
+
+    absErr = absoluteError(dev, devold);
+    relErr = relativeError(dev, devold);
+
+    T frac = 1;
+    auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
+
+    //Step Control
+    while(dev > (devold + control.epsilon*dev))
+    {
+      //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
+      if(control.printError)
+      {
+        writeln("\tStep control");
+        writeln("\tFraction: ", frac);
+        writeln("\tDeviance: ", dev);
+        writeln("\tAbsolute Error: ", absErr);
+        writeln("\tRelative Error: ", relErr);
+      }
+      frac *= 0.5;
+      coef = map!( (T x1, T x2) => x1 + (x2 * frac) )(coefold, coefdiff);
+
+      //writeln("Step control coefficient: ", coef.getData, "\n");
+
+      if(control.printCoef)
+        writeln(coef);
+      
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        eta[i] = mult_(x[i], coef);
+      
+      //writeln("First few values of eta: ", eta[0].getData[0..10]);
+      
+      if(doOffset)
+      {
+        foreach(i; taskPool.parallel(iota(nBlocks)))
+          eta[i] += offset[i];
+      }
+      mu = link.linkinv(dataType, eta);
+
+      if(weights.length == 0)
+        residuals = distrib.devianceResiduals(dataType, mu, y);
+      else
+        residuals = distrib.devianceResiduals(dataType, mu, y, weights);
+      
+      //writeln("First part of the deviance residuals: ", residuals[0].getData[0..10]);
+
+      dev = 0;
+      devStore = taskPool.workerLocalStorage(cast(T)0);
+      /* Parallel reduction required */
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        devStore.get += sum!T(residuals[i]);
+      foreach (_dev; devStore.toRange)
+        dev += _dev;
+      
+      //writeln("Calculated step control deviance: ", dev);
+
+      absErr = absoluteError(dev, devold);
+      relErr = relativeError(dev, devold);
+
+      if(frac < control.minstep)
+        assert(0, "Step control exceeded.");
+    }
+    devold = dev;
+    coefold = coef.dup;
+
+    if(control.printError)
+    {
+      writeln("\tDeviance: ", dev);
+      writeln("\tAbsolute Error: ", absErr);
+      writeln("\tRelative Error: ", relErr);
+    }
+    if(iter >= control.maxit)
+    {
+      writeln("Maximum number of iterations " ~ to!string(control.maxit) ~ " has been reached.");
+      badBreak = true;
+      break;
+    }
+    iter += 1;
+  }
+  if(badBreak)
+    converged = false;
+  else
+    converged = true;
+  
+  auto z = Z!(double)(dataType, link, y, mu, eta);
+  if(doOffset)
+  {
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+        z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
+  }
+  /* Weights calculation standard vs sqrt */
+  w = solver.W(dataType, distrib, link, mu, eta);
+  if(doWeights)
+  {
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
+  }
+  solver.XWX(dataType, xwx, xw, x, z, w);
+  
+  cov = solver.cov(inverse, xwx);
+  T phi = 1;
+
+  if(!unitDispsersion!(T, typeof(distrib)))
+  {
+    phi = dev/(n - p);
+    imap!( (T x) => x*phi)(cov);
+  }
+
+  openblas_set_num_threads(cast(int)totalCPUs);
   auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
   return obj;
 }

@@ -1388,6 +1388,9 @@ interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
   void XWX(ref Matrix!(T, layout) xwx, 
               ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w);
+  void XWX(Block1DParallel dataType, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w);
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx);
 }
 
@@ -1549,14 +1552,30 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
   {
     ulong p = x[0].ncol;
     xwx = zerosMatrix!(T, layout)(p, p);
-    ColumnVector!(T) XWZ = zerosColumn!(T)(p);
     ulong nBlocks = x.length;
     for(ulong i = 0; i < nBlocks; ++i)
     {
       auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
       xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
-      XWZ += mult_!(T, layout, CblasTrans)(tmp, z[i]);
     }
+  }
+  void XWX(Block1DParallel dataType, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  {
+    ulong p = x[0].ncol;
+
+    xwx = zerosMatrix!(T, layout)(p, p);
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
   }
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx)
   {
