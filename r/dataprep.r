@@ -33,7 +33,9 @@ write2DBlock(dataFolder %+% "energyBlockX", matrixToBlock(energyX, 1000))
 write2DBlock(dataFolder %+% "energyBlockY", matrixToBlock(energyY, 1000))
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "energyScaledX.bin", cbind(energyX[,1], scale(energyX[,-1])), 8)
+scaledMatrix = cbind(energyX[,1], scale(energyX[,-1]))
+write2DArray(dataFolder %+% "energyScaledX.bin", scaledMatrix, 8)
+write2DBlock(dataFolder %+% "energyScaledBlockX", matrixToBlock(scaledMatrix, 1000))
 
 # Motor insurance data
 insuranceX = model.matrix(~ Kilometres + Zone + Bonus + Make + Insured, data = faraway::motorins)
@@ -52,7 +54,10 @@ write2DBlock(dataFolder %+% "insuranceBlockX", matrixToBlock(insuranceX, 20))
 write2DBlock(dataFolder %+% "insuranceBlockY", matrixToBlock(insuranceY, 20))
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "insuranceScaledX.bin", cbind(insuranceX[,1], scale(insuranceX[,-1])), 8)
+scaledMatrix = cbind(insuranceX[,1], scale(insuranceX[,-1]))
+write2DArray(dataFolder %+% "insuranceScaledX.bin", scaledMatrix, 8)
+write2DBlock(dataFolder %+% "insuranceScaledBlockX", matrixToBlock(scaledMatrix, 20))
+
 
 # Credit fraud data
 cfData = fread(paste0(dataFolder, "creditfraudModelFrame.csv"))
@@ -75,7 +80,9 @@ write2DBlock(dataFolder %+% "creditBlockX", matrixToBlock(creditX, 200))
 write2DBlock(dataFolder %+% "creditBlockY", matrixToBlock(creditY, 200))
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "creditScaledX.bin", cbind(creditX[,1], scale(creditX[,-1])), 8)
+scaledMatrix = cbind(creditX[,1], scale(creditX[,-1]))
+write2DArray(dataFolder %+% "creditScaledX.bin", scaledMatrix, 8)
+write2DBlock(dataFolder %+% "creditScaledBlockX", matrixToBlock(scaledMatrix, 200))
 
 # GPA data
 gpaData = fread(paste0(dataFolder, "gpaData.csv"))
@@ -94,7 +101,8 @@ write2DArray(dataFolder %+% "gpaY.bin", gpaY, 8)
 # write1DArray(dataFolder %+% "gpaY.bin", as.vector(gpaY), 8)
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "gpaScaledX.bin", cbind(gpaX[,1], scale(gpaX[,-1])), 8)
+scaledMatrix = cbind(gpaX[,1], scale(gpaX[,-1]))
+write2DArray(dataFolder %+% "gpaScaledX.bin", scaledMatrix, 8)
 
 # Write the cars data to file
 Cars = data.table(mtcars)
@@ -115,7 +123,11 @@ write2DArray(dataFolder %+% "carsY.bin", carsY, 8)
 # write1DArray(dataFolder %+% "carsY.bin", as.vector(carsY), 8)
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "carsScaledX.bin", cbind(carsX[,1], scale(carsX[,-1])), 8)
+scaledMatrix = cbind(carsX[,1], scale(carsX[,-1]))
+write2DArray(dataFolder %+% "carsScaledX.bin", scaledMatrix, 8)
+write2DBlock(dataFolder %+% "carsBlockY", matrixToBlock(carsY, 5))
+write2DBlock(dataFolder %+% "carsScaledBlockX", matrixToBlock(scaledMatrix, 5))
+
 
 # For negative binomial distribution
 quineX = model.matrix(Days ~ ., data = quine[quine$Days > 0,])
@@ -150,4 +162,7 @@ write2DBlock(dataFolder %+% "educationBlockX", matrixToBlock(educationX, 8))
 write2DBlock(dataFolder %+% "educationBlockY", matrixToBlock(educationY, 8))
 
 # Scaled X Matrix
-write2DArray(dataFolder %+% "educationScaledX.bin", cbind(educationX[,1], scale(educationX[,-1])), 8)
+scaledMatrix = cbind(educationX[,1], scale(educationX[,-1]))
+write2DArray(dataFolder %+% "educationScaledX.bin", scaledMatrix, 8)
+write2DBlock(dataFolder %+% "educationScaledBlockX", matrixToBlock(scaledMatrix, 8))
+

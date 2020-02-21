@@ -10,4 +10,5 @@ void main()
   //testParallel();
   //parallelBlockGLMDemo();
   gradientDescentGLMDemo();
+  //testBlockIO();
 }

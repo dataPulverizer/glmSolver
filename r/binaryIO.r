@@ -172,6 +172,19 @@ blockConvertTest = function(n = 100, nBlocks = 8)
               "vector" = vectorToBlock(vec, nBlocks)))
 }
 #=======================================================================#
+
+# Function to pad numbers
+pad_number = function(num, len)
+{
+  num = as.character(num)
+  .len = nchar(num)
+  nzeros = len - .len
+  if(nzeros > 0)
+    num = paste0(paste0(rep("0", nzeros), collapse = ""), num)
+  return(num)
+}
+
+
 #' @description This function writes a list of matrices representing 
 #' blocks to disk in many files.
 #' @param path the path to the folder where all the data blocks 
@@ -184,10 +197,11 @@ setMethod("write2DBlock", signature = c("character", "list", "numeric"),
   definition = function(path, blockMatrix, bitSize)
   {
     nFiles = length(blockMatrix)
+    len = nchar(as.character(nFiles))
     dir.create(path)
     for(i in 1:nFiles)
     {
-      fileName = paste0(path, "/block_", i, ".bin")
+      fileName = paste0(path, "/block_", pad_number(i, len), ".bin")
       write2DArray(fileName, blockMatrix[[i]], bitSize)
     }
     return(invisible())
@@ -198,10 +212,11 @@ setMethod("write2DBlock", signature = c("character", "list"),
   definition = function(path, blockMatrix)
   {
     nFiles = length(blockMatrix)
+    len = nchar(as.character(nFiles))
     dir.create(path)
     for(i in 1:nFiles)
     {
-      fileName = paste0(path, "/block_", i, ".bin")
+      fileName = paste0(path, "/block_", pad_number(i, len), ".bin")
       write2DArray(fileName, blockMatrix[[i]], 8)
     }
     return(invisible())

@@ -5,6 +5,9 @@ module glmsolverd.io;
 
 import glmsolverd.arrays;
 import std.stdio: File;
+import std.algorithm.sorting: sort;
+import std.array: array;
+import std.stdio: writeln;
 
 /**************************************** BINARY IO ***************************************/
 void writeColumnVector(T)(string fileName, ColumnVector!T v)
@@ -59,11 +62,26 @@ Matrix!(T, layout) readMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(string fil
   return new Matrix!(T, layout)(mat, [cast(ulong)dim[0], cast(ulong)dim[1]]);
 }
 
+string[] listFiles(string path, bool doSort = true)
+{
+  auto files = dirEntries(path, SpanMode.breadth);
+  string[] output;
+  foreach (string fileName; files)
+  {
+    output ~= fileName;
+  }
+  if(doSort)
+    output = output.sort.array;
+  return output;
+}
+
 import std.file: dirEntries, SpanMode;
 BlockMatrix!(T, layout) readBlockMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(string path)
 {
   BlockMatrix!(T, layout) blockMatrix;
-  auto files = dirEntries(path, SpanMode.breadth);
+  //auto files = dirEntries(path, SpanMode.breadth);
+  string[] files = listFiles(path);
+  //writeln("Files: ", files);
   foreach (string fileName; files)
   {
     /* try-catch block here? */

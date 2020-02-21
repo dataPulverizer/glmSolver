@@ -17,7 +17,7 @@ import std.traits: isFloatingPoint, isIntegral, isNumeric;
 import std.parallelism;
 import std.range : iota;
 
-//import std.stdio: writeln;
+import std.stdio: writeln;
 /*
 ** TODO: Remove the functions that are no longer needed and remove them
 ** in the demo.d script where they are used in the first visual testing
@@ -1385,7 +1385,10 @@ interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
   void XWX(ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
               ref ColumnVector!(T) z, ref ColumnVector!(T) w);
-  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw);
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w);
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx);
 }
 
 /*
@@ -1458,6 +1461,8 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
     ulong n = x.nrow;
     auto grad = pgradient_(distrib, link, y, x, mu, eta);
     assert(n > p, "Number of items n is not greater than the number of parameters p.");
+    //writeln("Raw Gradient: ", grad.getData);
+    //writeln("(n - p): ", n - p);
     return grad/cast(T)(n - p);
   }
   ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link, 
@@ -1472,6 +1477,8 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
       n += y[i].length;
       grad += pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
     }
+    //writeln("Raw Gradient (Block): ", grad.getData);
+    //writeln("(n - p): ", n - p);
     assert(n > p, "Number of items n is not greater than the number of parameters p.");
     return grad/cast(T)(n - p);
   }
@@ -1509,7 +1516,7 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
             ColumnVector!T eta, ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(distrib, link, y, x, mu, eta);
-    coef -= learningRate * grad;
+    coef += learningRate * grad;
   }
   /* Solver for blocked matrices/vectors */
   void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
@@ -1518,7 +1525,7 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
             ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(distrib, link, y, x, mu, eta);
-    coef -= learningRate * grad;
+    coef += learningRate * grad;
   }
   /* Solver for parallel blocked matrices/vectors */
   void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
@@ -1527,7 +1534,7 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
             BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
-    coef -= learningRate * grad;
+    coef += learningRate * grad;
   }
   void XWX(ref Matrix!(T, layout) xwx, 
               ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
@@ -1536,7 +1543,22 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
     xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
     xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
   }
-  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) R, Matrix!(T, layout) xwx, Matrix!(T, layout) xw)
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  {
+    ulong p = x[0].ncol;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ColumnVector!(T) XWZ = zerosColumn!(T)(p);
+    ulong nBlocks = x.length;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+      XWZ += mult_!(T, layout, CblasTrans)(tmp, z[i]);
+    }
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx)
   {
     return inverse.inv(xwx);
   }

@@ -531,6 +531,7 @@ if(isFloatingPoint!T)
 
 /**************************************** Gradient Descent GLM ***************************************/
 
+/* For regular data */
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         RegularData dataType,  Matrix!(T, layout) x, 
         Matrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
@@ -546,7 +547,9 @@ if(isFloatingPoint!T)
 
   //auto coef = zerosColumn!T(x.ncol);
   auto n = x.nrow; auto p = x.ncol;
-  auto coef = sampleStandardNormal!T(x.ncol)/p;//pow(p, 0.5);
+
+  //auto coef = sampleStandardNormal!T(p)/p;
+  auto coef = zerosColumn!T(p);
   auto coefold = zerosColumn!T(x.ncol);
 
   auto absErr = T.infinity;
@@ -562,15 +565,21 @@ if(isFloatingPoint!T)
     doOffset = true;
   if(weights.len != 0)
     doWeights = true;
+  
+  //writeln("Print some values from X");
+  //for(ulong i = 0; i < 10; ++i)
+  //  for(ulong j = 0; j < 10; ++j)
+  //    writeln("X(", i, ", ", j,"): ", x[i, j]);
 
   Matrix!(T, layout) cov, xw, xwx, R;
-  ColumnVector!(T) w;//, wy;
+  ColumnVector!(T) w;
   while(relErr > control.epsilon)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
 
     solver.solve(distrib, link, y, x, mu, eta, coef);
+    //writeln("Coefficients: ", coef.getData, "\n");
     
     if(control.printCoef)
       writeln(coef);
@@ -588,6 +597,14 @@ if(isFloatingPoint!T)
       residuals = distrib.devianceResiduals(mu, y, weights);
     
     dev = sum!T(residuals);
+    //writeln("Deviance: ", dev, "\n");
+
+    //if(/* iter % 100 == 0 & */ true)
+    //{
+    //  writeln("Iteration: ", iter);
+    //  writeln("Coefficients: ", coef.getData, "\n");
+    //  writeln("Deviance: ", dev, "\n");
+    //}
 
     absErr = absoluteError(dev, devold);
     relErr = relativeError(dev, devold);
@@ -598,7 +615,7 @@ if(isFloatingPoint!T)
     //Step Control
     while(dev > (devold + control.epsilon*dev))
     {
-      //writeln("Entered step control");
+      //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
       if(control.printError)
       {
         writeln("\tStep control");
@@ -610,10 +627,15 @@ if(isFloatingPoint!T)
       frac *= 0.5;
       coef = map!( (T x1, T x2) => x1 + (x2 * frac) )(coefold, coefdiff);
       
+      //writeln("Step control coefficient: ", coef.getData, "\n");
+      
       if(control.printCoef)
         writeln(coef);
       
       eta = mult_(x, coef);
+
+      //writeln("First few values of eta: ", eta.getData[0..10]);
+
       if(doOffset)
         eta += offset;
       mu = link.linkinv(eta);
@@ -623,7 +645,10 @@ if(isFloatingPoint!T)
       else
         residuals = distrib.devianceResiduals(mu, y, weights);
       
+      //writeln("First part of the deviance residuals: ", residuals.getData[0..10]);
+      
       dev = sum!T(residuals);
+      //writeln("Calculated step control deviance: ", dev);
       
       absErr = absoluteError(dev, devold);
       relErr = relativeError(dev, devold);
@@ -634,8 +659,9 @@ if(isFloatingPoint!T)
     devold = dev;
     coefold = coef.dup;
 
-    if(iter % 100 == 0)
-      writeln("Deviance: ", dev, ", iteration: ", iter);
+    /* Printing for devaince */
+    //if(iter % 100 == 0)
+    //  writeln("Deviance: ", dev, ", iteration: ", iter);
 
     if(control.printError)
     {
@@ -668,11 +694,209 @@ if(isFloatingPoint!T)
   if(doWeights)
     w = map!( (x1, x2) => x1*x2 )(w, weights);
   
-  writeln("Coefficients: ", coef.getData);
+  //writeln("Coefficients: ", coef.getData);
 
   solver.XWX(xwx, xw, x, z, w);
   
-  cov = solver.cov(inverse, R, xwx, xw);
+  cov = solver.cov(inverse, xwx);
+  T phi = 1;
+
+  if(!unitDispsersion!(T, typeof(distrib)))
+  {
+    phi = dev/(n - p);
+    imap!( (T x) => x*phi)(cov);
+  }
+
+  auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
+  return obj;
+}
+
+/* For blocked data */
+/*
+  For now Block1D overload is limited only to the following solvers ...
+
+  GESVSolver
+  POSVSolver
+  SYSVSolver
+*/
+auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
+        Block1D dataType, Matrix!(T, layout)[] x, 
+        Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
+        AbstractGradientSolver!(T) solver, 
+        AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
+        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
+if(isFloatingPoint!T)
+{
+  auto nBlocks = _y.length;
+  auto init = distrib.init(_y, weights);
+  ColumnVector!(T)[] y = init[0]; 
+  ColumnVector!(T)[] mu = init[1]; weights = init[2];
+  auto eta = link.linkfun(mu);
+
+  auto p = x[0].ncol;
+  //auto coef = sampleStandardNormal!T(p)/p;
+  auto coef = zerosColumn!T(p);
+  auto coefold = zerosColumn!T(p);
+
+  auto absErr = T.infinity;
+  auto relErr = T.infinity;
+  ColumnVector!(T)[] residuals;
+  auto dev = T.infinity;
+  auto devold = T.infinity;
+
+  ulong iter = 1;
+  ulong n = 0;
+  for(ulong i = 0; i < nBlocks; ++i)
+    n += x[i].nrow;
+  
+  bool converged, badBreak, doOffset, doWeights;
+
+  if(offset.length != 0)
+    doOffset = true;
+  if(weights.length != 0)
+    doWeights = true;
+  
+  //writeln("Print some values from X");
+  //for(ulong i = 0; i < 10; ++i)
+  //  for(ulong j = 0; j < 10; ++j)
+  //    writeln("X(", i, ", ", j,"): ", x[0][i, j]);
+
+  Matrix!(T, layout) cov, xwx, R;
+  ColumnVector!(T)[] w;
+  Matrix!(T, layout)[] xw;
+  while(relErr > control.epsilon)
+  {
+    if(control.printError)
+      writeln("Iteration: ", iter);
+    
+    solver.solve(distrib, link, y, x, mu, eta, coef);
+    
+    if(control.printCoef)
+      writeln(coef);
+    
+    for(ulong i = 0; i < nBlocks; ++i)
+      eta[i] = mult_(x[i], coef);
+    
+    if(doOffset)
+    {
+      for(ulong i = 0; i < nBlocks; ++i)
+        eta[i] += offset[i];
+    }
+    
+    mu = link.linkinv(eta);
+
+    if(weights.length == 0)
+      residuals = distrib.devianceResiduals(mu, y);
+    else
+      residuals = distrib.devianceResiduals(mu, y, weights);
+    
+    dev = 0;
+    for(ulong i = 0; i < nBlocks; ++i)
+      dev += sum!T(residuals[i]);
+    
+    //if(/* iter % 100 == 0 & */ true)
+    //{
+    //  writeln("Iteration: ", iter);
+    //  writeln("Coefficients: ", coef.getData, "\n");
+    //  writeln("Deviance: ", dev, "\n");
+    //}
+
+    absErr = absoluteError(dev, devold);
+    relErr = relativeError(dev, devold);
+
+    T frac = 1;
+    auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
+
+    //Step Control
+    while(dev > (devold + control.epsilon*dev))
+    {
+      //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
+      if(control.printError)
+      {
+        writeln("\tStep control");
+        writeln("\tFraction: ", frac);
+        writeln("\tDeviance: ", dev);
+        writeln("\tAbsolute Error: ", absErr);
+        writeln("\tRelative Error: ", relErr);
+      }
+      frac *= 0.5;
+      coef = map!( (T x1, T x2) => x1 + (x2 * frac) )(coefold, coefdiff);
+
+      //writeln("Step control coefficient: ", coef.getData, "\n");
+
+      if(control.printCoef)
+        writeln(coef);
+      
+      for(ulong i = 0; i < nBlocks; ++i)
+        eta[i] = mult_(x[i], coef);
+      
+      //writeln("First few values of eta: ", eta[0].getData[0..10]);
+      
+      if(doOffset)
+      {
+        for(ulong i = 0; i < nBlocks; ++i)
+          eta[i] += offset[i];
+      }
+      mu = link.linkinv(eta);
+
+      if(weights.length == 0)
+        residuals = distrib.devianceResiduals(mu, y);
+      else
+        residuals = distrib.devianceResiduals(mu, y, weights);
+      
+      //writeln("First part of the deviance residuals: ", residuals[0].getData[0..10]);
+
+      dev = 0;
+      for(ulong i = 0; i < nBlocks; ++i)
+        dev += sum!T(residuals[i]);
+      
+      //writeln("Calculated step control deviance: ", dev);
+
+      absErr = absoluteError(dev, devold);
+      relErr = relativeError(dev, devold);
+
+      if(frac < control.minstep)
+        assert(0, "Step control exceeded.");
+    }
+    devold = dev;
+    coefold = coef.dup;
+
+    if(control.printError)
+    {
+      writeln("\tDeviance: ", dev);
+      writeln("\tAbsolute Error: ", absErr);
+      writeln("\tRelative Error: ", relErr);
+    }
+    if(iter >= control.maxit)
+    {
+      writeln("Maximum number of iterations " ~ to!string(control.maxit) ~ " has been reached.");
+      badBreak = true;
+      break;
+    }
+    iter += 1;
+  }
+  if(badBreak)
+    converged = false;
+  else
+    converged = true;
+  
+  auto z = Z!(double)(link, y, mu, eta);
+  if(doOffset)
+  {
+    for(ulong i = 0; i < nBlocks; ++i)
+      z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
+  }
+  /* Weights calculation standard vs sqrt */
+  w = solver.W(distrib, link, mu, eta);
+  if(doWeights)
+  {
+    for(ulong i = 0; i < nBlocks; ++i)
+      w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
+  }
+  solver.XWX(xwx, xw, x, z, w);
+  
+  cov = solver.cov(inverse, xwx);
   T phi = 1;
 
   if(!unitDispsersion!(T, typeof(distrib)))

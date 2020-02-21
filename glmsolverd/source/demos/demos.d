@@ -472,7 +472,7 @@ void gradientDescentGLMDemo()
 {
   string path = "/home/chib/code/glmSolver/data/";
 
-  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyBlockX/");
+  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyScaledBlockX/");
   auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
   
   auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
@@ -486,9 +486,26 @@ void gradientDescentGLMDemo()
   /* Gradient Descent */
   gammaModel = glm!(double)(new RegularData(), energyX, 
         energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new GradientDescent!(double)(-5E-4), new GETRIInverse!(double)(),
-        new Control!(double)(6000));
+        new GradientDescent!(double)(1E-4), new GETRIInverse!(double)(),
+        new Control!(double)(10));
   writeln("Gradient Descent solver with regular data \n", gammaModel);
+  /* Gradient Descent Block Model */
+  gammaModel = glm!(double)(new Block1D(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new GradientDescent!(double)(1E-4), new GETRIInverse!(double)(),
+        new Control!(double)(10));
+  writeln("Gradient Descent solver with regular data \n", gammaModel);
+}
+
+void testBlockIO()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+
+  auto carsX = readMatrix!(double)(path ~ "carsScaledX.bin");
+  auto carsBlockX = readBlockMatrix!(double)(path ~ "carsScaledBlockX/");
+
+  writeln("Cars X: ", carsX);
+  writeln("Cars X block: ", carsBlockX);
 }
 
 
