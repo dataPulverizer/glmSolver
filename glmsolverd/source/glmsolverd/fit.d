@@ -575,6 +575,18 @@ if(isFloatingPoint!T)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
+    
+    if(solver.name == "Nesterov")
+    {
+      solver.NesterovModifier(coef);
+
+      eta = mult_(x, coef);
+      if(doOffset)
+        eta += offset;
+      mu = link.linkinv(eta);
+
+      solver.NesterovUnModifier(coef);
+    }
 
     solver.solve(distrib, link, y, x, mu, eta, coef);
     //writeln("Coefficients: ", coef.getData, "\n");
@@ -767,6 +779,22 @@ if(isFloatingPoint!T)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
+    
+    if(solver.name == "Nesterov")
+    {
+      solver.NesterovModifier(coef);
+
+      for(ulong i = 0; i < nBlocks; ++i)
+        eta[i] = mult_(x[i], coef);
+      if(doOffset)
+      {
+        for(ulong i = 0; i < nBlocks; ++i)
+          eta[i] += offset[i];
+      }
+      mu = link.linkinv(eta);
+
+      solver.NesterovUnModifier(coef);
+    }
     
     solver.solve(distrib, link, y, x, mu, eta, coef);
     
@@ -972,6 +1000,25 @@ if(isFloatingPoint!T)
     if(control.printError)
       writeln("Iteration: ", iter);
     
+    /* Recalculate eta and mu for Nesterov with modified coefficient */
+    if(solver.name == "Nesterov")
+    {
+      //writeln("Nesterov Modifier");
+      //writeln("Original Coefficient: ", coef.getData, "\n");
+      solver.NesterovModifier(coef);
+      //writeln("Modified Coefficient: ", coef.getData, "\n");
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        eta[i] = mult_(x[i], coef);
+    
+      if(doOffset)
+      {
+        foreach(i; taskPool.parallel(iota(nBlocks)))
+          eta[i] += offset[i];
+      }
+      mu = link.linkinv(dataType, eta);
+      solver.NesterovUnModifier(coef);
+      //writeln("UnModified Coefficient: ", coef.getData, "\n");
+    }
     solver.solve(dataType, distrib, link, y, x, mu, eta, coef);
     //writeln("Iteration: ", iter);
     //writeln("Coefficient: ", coef.getData, "\n");

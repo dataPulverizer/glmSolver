@@ -1392,6 +1392,10 @@ interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
               ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
               ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w);
   Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx);
+  immutable(string) name();
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef);
+  void NesterovUnModifier(ref ColumnVector!(T) coef);
 }
 
 /* Gradient Mixin */
@@ -1555,6 +1559,7 @@ mixin template GradientMixin(T, CBLAS_LAYOUT layout)
 mixin template GradientSolverMixin(T, CBLAS_LAYOUT layout)
 {
   private:
+  immutable(string) solverName;
   T learningRate;
   public:
   /* Solver for standard matrices/vectors */
@@ -1583,9 +1588,23 @@ mixin template GradientSolverMixin(T, CBLAS_LAYOUT layout)
     auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
     coef += learningRate * grad;
   }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
   this(T _learningRate)
   {
     learningRate = _learningRate;
+    solverName = "Simple Gradient Descent";
   }
 }
 
@@ -1601,6 +1620,7 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
 mixin template MomentumMixin(T, CBLAS_LAYOUT layout)
 {
   private:
+  immutable(string) solverName;
   T learningRate;
   T momentum;
   ColumnVector!(T) delta;
@@ -1634,12 +1654,26 @@ mixin template MomentumMixin(T, CBLAS_LAYOUT layout)
     delta = momentum*delta + learningRate*grad;
     coef += delta;
   }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
   /* momentum typical value of 0.9 */
   this(T _learningRate, T _momentum, ulong p)
   {
     learningRate = _learningRate;
     momentum = _momentum;
     delta = zerosColumn!T(p);
+    solverName = "Momentum";
   }
 }
 
@@ -1650,9 +1684,76 @@ class Momentum(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(
   mixin MomentumMixin!(T, layout);
 }
 
+/***************** Gradient Descent With Nesterov Solver **************/
+/* Gradient Descent With Momentum Solver */
+mixin template NesterovMixin(T, CBLAS_LAYOUT layout)
+{
+  private:
+  immutable(string) solverName;
+  T learningRate;
+  T momentum;
+  ColumnVector!(T) delta;
+  public:
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    delta = momentum*delta + learningRate*grad;
+    coef += delta;
+  }
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    delta = momentum*delta + learningRate*grad;
+    coef += delta;
+  }
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
+    delta = momentum*delta + learningRate*grad;
+    coef += delta;
+  }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    coef += momentum * delta;
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    coef -= momentum * delta;
+    return;
+  }
+  /* momentum typical value of 0.9 */
+  this(T _learningRate, T _momentum, ulong p)
+  {
+    learningRate = _learningRate;
+    momentum = _momentum;
+    delta = zerosColumn!T(p);
+    solverName = "Nesterov";
+  }
+}
 
 
-
+class Nesterov(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  mixin GradientMixin!(T, layout);
+  mixin NesterovMixin!(T, layout);
+}
 
 
 

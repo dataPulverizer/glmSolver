@@ -416,9 +416,10 @@ if(isNumeric!T)
   {
     static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
+      auto ret = data.dup;
       for(ulong i = 0; i < data.length; ++i)
-        mixin("data[i] = data[i] " ~ op ~ " rhs;");
-      return this;
+        mixin("ret[i] = data[i] " ~ op ~ " rhs;");
+      return new ColumnVector!(T)(ret);
     } else static assert(0, "Operator " ~ op ~ " not implemented");
   }
   ColumnVector!T opBinaryRight(string op)(T lhs)

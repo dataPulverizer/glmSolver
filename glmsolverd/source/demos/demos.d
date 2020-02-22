@@ -505,9 +505,16 @@ void gradientDescentGLMDemo()
   /* Gradient Descent Momentum Block Model */
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Momentum!(double)(1E-5, 0.90, energyBlockX[0].ncol),
-        new GETRIInverse!(double)(), new Control!(double)(10));
-  writeln("Gradient Descent solver with parallel data \n", gammaModel);
+        new Momentum!(double)(5E-6, 0.80, energyBlockX[0].ncol),
+        new GETRIInverse!(double)(), new Control!(double)(200));
+  writeln("Gradient Descent solver with parallel data for Momentum Solver \n", gammaModel);
+
+  /* Gradient Descent Nesterov Block Model */
+  gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new Nesterov!(double)(5E-6, 0.80, energyBlockX[0].ncol),
+        new GETRIInverse!(double)(), new Control!(double)(200));
+  writeln("Gradient Descent solver with parallel data for Nesterov Solver \n", gammaModel);
 }
 
 void testBlockIO()
