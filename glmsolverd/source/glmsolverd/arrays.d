@@ -176,6 +176,23 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
       }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
       return ret;
     }
+    Matrix!(T, L) opBinary(string op)(T rhs)
+    {
+      ulong n = data.length;
+      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+      {
+        for(ulong i = 0; i < n; ++i)
+        {
+          mixin("ret.getData[i] = " ~ "data[i] " ~ op ~ " rhs;");
+        }
+      }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
+      return ret;
+    }
+    Matrix!(T, L) opBinaryRight(string op)(T lhs)
+    {
+      return opBinary!(op)(lhs);
+    }
     void opOpAssign(string op)(Matrix!(T, L) x)
     {
       assert( data.length == x.getData.length,
@@ -467,9 +484,10 @@ if(isNumeric!T)
   {
     static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
     {
+      auto ret = data.dup;
       for(ulong i = 0; i < data.length; ++i)
-        mixin("data[i] = data[i] " ~ op ~ " rhs;");
-      return this;
+        mixin("ret[i] = data[i] " ~ op ~ " rhs;");
+      return new RowVector!(T)(ret);
     } else static assert(0, "Operator " ~ op ~ " not implemented");
   }
   RowVector!T opBinaryRight(string op)(T lhs)

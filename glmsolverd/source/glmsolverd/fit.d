@@ -348,11 +348,14 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
-        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        Control!T control = new Control!T(),
+        uint nThreads = cast(uint)(totalCPUs - 1), 
+        ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
   openblas_set_num_threads(1);
+  defaultPoolThreads(nThreads);
   auto nBlocks = _y.length;
   auto init = distrib.init(dataType, _y, weights);
   ColumnVector!(T)[] y = init[0]; 
@@ -948,11 +951,14 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractGradientSolver!(T) solver, 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
-        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        Control!T control = new Control!T(), 
+        uint nThreads = cast(uint)(totalCPUs - 1), 
+        ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
   openblas_set_num_threads(1);
+  defaultPoolThreads(nThreads);
   auto nBlocks = _y.length;
   auto init = distrib.init(_y, weights);
   ColumnVector!(T)[] y = init[0]; 
