@@ -441,7 +441,13 @@ if(isNumeric!T)
   }
   ColumnVector!T opBinaryRight(string op)(T lhs)
   {
-    return opBinary!(op)(lhs);
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      auto ret = data.dup;
+      for(ulong i = 0; i < data.length; ++i)
+        mixin("ret[i] = lhs " ~ op ~ " ret[i];");
+      return new ColumnVector!(T)(ret);
+    } else static assert(0, "Operator " ~ op ~ " not implemented");
   }
   ColumnVector!T opBinary(string op)(ColumnVector!T rhs)
   {
@@ -450,7 +456,7 @@ if(isNumeric!T)
       assert(data.length == rhs.data.length, "Vector lengths are not the same.");
       auto ret = new ColumnVector!T(rhs.data.dup);
       for(ulong i = 0; i < data.length; ++i)
-        mixin("ret.data[i] = ret.data[i] " ~ op ~ " data[i];");
+        mixin("ret.data[i] = data[i] " ~ op ~ " ret.data[i];");
       return ret;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }
@@ -486,13 +492,19 @@ if(isNumeric!T)
     {
       auto ret = data.dup;
       for(ulong i = 0; i < data.length; ++i)
-        mixin("ret[i] = data[i] " ~ op ~ " rhs;");
+        mixin("ret[i] = ret[i] " ~ op ~ " rhs;");
       return new RowVector!(T)(ret);
     } else static assert(0, "Operator " ~ op ~ " not implemented");
   }
   RowVector!T opBinaryRight(string op)(T lhs)
   {
-    return opBinary!(op)(lhs);
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      auto ret = data.dup;
+      for(ulong i = 0; i < data.length; ++i)
+        mixin("ret[i] = lhs " ~ op ~ " ret[i];");
+      return new RowVector!(T)(ret);
+    } else static assert(0, "Operator " ~ op ~ " not implemented");
   }
   RowVector!T opBinary(string op)(RowVector!T rhs)
   {
@@ -501,7 +513,7 @@ if(isNumeric!T)
       assert(data.len == rhs.data.len, "Vector lengths are not the same.");
       auto ret = RowVector!T(rhs.data.dup);
       for(ulong i = 0; i < data.len; ++i)
-        mixin("ret.data[i] = ret.data[i] "~ op ~ " data[i];");
+        mixin("ret.data[i] = data[i] "~ op ~ " ret.data[i];");
       return ret;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }

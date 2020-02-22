@@ -9,6 +9,11 @@ void main()
   //blockGLMDemo();
   //testParallel();
   //parallelBlockGLMDemo();
-  gradientDescentGLMDemo();
+  //gradientDescentGLMDemo();
   //testBlockIO();
+  //gdMomentumDemo();
+  //gdMomentumDataDemo();
+  //gdNesterovDataDemo();
+  //gdNesterovVsMomentumDemo();
+  gdNesterovVsAdagradDemo();
 }

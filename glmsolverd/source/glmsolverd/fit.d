@@ -538,7 +538,9 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Matrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractGradientSolver!(T) solver, 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
-        Control!T control = new Control!T(), ColumnVector!T offset = zerosColumn!T(0),
+        Control!T control = new Control!T(),
+        bool calculateCovariance = true, 
+        ColumnVector!T offset = zerosColumn!T(0),
         ColumnVector!T weights = zerosColumn!T(0))
 if(isFloatingPoint!T)
 {
@@ -696,28 +698,33 @@ if(isFloatingPoint!T)
   else
     converged = true;
   
-  auto z = link.Z(y, mu, eta);
-  
-  if(doOffset)
-    z = map!( (x1, x2) => x1 - x2 )(z, offset);
-  
-  /* Weights calculation standard vs sqrt */
-  w = solver.W(distrib, link, mu, eta);
-  
-  if(doWeights)
-    w = map!( (x1, x2) => x1*x2 )(w, weights);
-  
-  //writeln("Coefficients: ", coef.getData);
-
-  solver.XWX(xwx, xw, x, z, w);
-  
-  cov = solver.cov(inverse, xwx);
   T phi = 1;
-
-  if(!unitDispsersion!(T, typeof(distrib)))
+  if(calculateCovariance)
   {
-    phi = dev/(n - p);
-    imap!( (T x) => x*phi)(cov);
+    auto z = link.Z(y, mu, eta);
+    
+    if(doOffset)
+      z = map!( (x1, x2) => x1 - x2 )(z, offset);
+    
+    /* Weights calculation standard vs sqrt */
+    w = solver.W(distrib, link, mu, eta);
+    
+    if(doWeights)
+      w = map!( (x1, x2) => x1*x2 )(w, weights);
+    
+    //writeln("Coefficients: ", coef.getData);
+    
+    solver.XWX(xwx, xw, x, z, w);
+    
+    cov = solver.cov(inverse, xwx);
+    
+    if(!unitDispsersion!(T, typeof(distrib)))
+    {
+      phi = dev/(n - p);
+      imap!( (T x) => x*phi)(cov);
+    }
+  }else{
+    cov = fillMatrix!(T)(1, p, p);
   }
 
   auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
@@ -737,7 +744,8 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
         AbstractGradientSolver!(T) solver, 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
-        Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        Control!T control = new Control!T(), bool calculateCovariance = true, 
+        ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
@@ -910,30 +918,35 @@ if(isFloatingPoint!T)
   else
     converged = true;
   
-  auto z = Z!(double)(link, y, mu, eta);
-  if(doOffset)
-  {
-    for(ulong i = 0; i < nBlocks; ++i)
-      z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
-  }
-  /* Weights calculation standard vs sqrt */
-  w = solver.W(distrib, link, mu, eta);
-  if(doWeights)
-  {
-    for(ulong i = 0; i < nBlocks; ++i)
-      w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
-  }
-  solver.XWX(xwx, xw, x, z, w);
-  
-  cov = solver.cov(inverse, xwx);
   T phi = 1;
-
-  if(!unitDispsersion!(T, typeof(distrib)))
+  if(calculateCovariance)
   {
-    phi = dev/(n - p);
-    imap!( (T x) => x*phi)(cov);
+    auto z = Z!(double)(link, y, mu, eta);
+    if(doOffset)
+    {
+      for(ulong i = 0; i < nBlocks; ++i)
+        z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
+    }
+    /* Weights calculation standard vs sqrt */
+    w = solver.W(distrib, link, mu, eta);
+    if(doWeights)
+    {
+      for(ulong i = 0; i < nBlocks; ++i)
+        w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
+    }
+    solver.XWX(xwx, xw, x, z, w);
+    
+    cov = solver.cov(inverse, xwx);
+    
+    if(!unitDispsersion!(T, typeof(distrib)))
+    {
+      phi = dev/(n - p);
+      imap!( (T x) => x*phi)(cov);
+    }
+  }else{
+    cov = fillMatrix!(T)(1, p, p);
   }
-
+  
   auto obj = new GLM!(T, layout)(iter, converged, phi, distrib, link, coef, cov, dev, absErr, relErr);
   return obj;
 }
@@ -953,6 +966,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(), 
         uint nThreads = cast(uint)(totalCPUs - 1), 
+        bool calculateCovariance = true,
         ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
@@ -1005,7 +1019,7 @@ if(isFloatingPoint!T)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
-    
+
     /* Recalculate eta and mu for Nesterov with modified coefficient */
     if(solver.name == "Nesterov")
     {
@@ -1146,28 +1160,32 @@ if(isFloatingPoint!T)
   else
     converged = true;
   
-  auto z = Z!(double)(dataType, link, y, mu, eta);
-  if(doOffset)
-  {
-    foreach(i; taskPool.parallel(iota(nBlocks)))
-        z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
-  }
-  /* Weights calculation standard vs sqrt */
-  w = solver.W(dataType, distrib, link, mu, eta);
-  if(doWeights)
-  {
-    foreach(i; taskPool.parallel(iota(nBlocks)))
-      w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
-  }
-  solver.XWX(dataType, xwx, xw, x, z, w);
-  
-  cov = solver.cov(inverse, xwx);
   T phi = 1;
-
-  if(!unitDispsersion!(T, typeof(distrib)))
-  {
-    phi = dev/(n - p);
-    imap!( (T x) => x*phi)(cov);
+  if(calculateCovariance){
+    auto z = Z!(double)(dataType, link, y, mu, eta);
+    if(doOffset)
+    {
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+          z[i] = map!( (x1, x2) => x1 - x2 )(z[i], offset[i]);
+    }
+    /* Weights calculation standard vs sqrt */
+    w = solver.W(dataType, distrib, link, mu, eta);
+    if(doWeights)
+    {
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        w[i] = map!( (x1, x2) => x1*x2 )(w[i], weights[i]);
+    }
+    solver.XWX(dataType, xwx, xw, x, z, w);
+    
+    cov = solver.cov(inverse, xwx);
+    
+    if(!unitDispsersion!(T, typeof(distrib)))
+    {
+      phi = dev/(n - p);
+      imap!( (T x) => x*phi)(cov);
+    }
+  }else{
+    cov = fillMatrix!(T)(1, p, p);
   }
 
   openblas_set_num_threads(cast(int)totalCPUs);

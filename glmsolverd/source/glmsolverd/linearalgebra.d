@@ -16,6 +16,7 @@ import std.traits: isFloatingPoint, isIntegral, isNumeric;
 
 import std.parallelism;
 import std.range : iota;
+import std.math: pow;
 
 import std.stdio: writeln;
 /*
@@ -1615,8 +1616,7 @@ class GradientDescent(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientS
   mixin GradientSolverMixin!(T, layout);
 }
 
-
-/* Gradient Descent With Momentum Solver */
+/***************** Momentum Gradient Descent Solver **************/
 mixin template MomentumMixin(T, CBLAS_LAYOUT layout)
 {
   private:
@@ -1684,8 +1684,7 @@ class Momentum(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(
   mixin MomentumMixin!(T, layout);
 }
 
-/***************** Gradient Descent With Nesterov Solver **************/
-/* Gradient Descent With Momentum Solver */
+/***************** Nesterov Gradient Descent Solver **************/
 mixin template NesterovMixin(T, CBLAS_LAYOUT layout)
 {
   private:
@@ -1730,12 +1729,12 @@ mixin template NesterovMixin(T, CBLAS_LAYOUT layout)
   /* Modify/Unmodify coefficients for Nesterov */
   void NesterovModifier(ref ColumnVector!(T) coef)
   {
-    coef += momentum * delta;
+    coef -= momentum * delta;
     return;
   }
   void NesterovUnModifier(ref ColumnVector!(T) coef)
   {
-    coef -= momentum * delta;
+    coef += momentum * delta;
     return;
   }
   /* momentum typical value of 0.9 */
@@ -1755,137 +1754,24 @@ class Nesterov(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(
   mixin NesterovMixin!(T, layout);
 }
 
-
-
-
-
-
-
-
-
-
-
-/**************************** Delete This ******************************/
-class GradientDescentOld(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+/***************** Momentum Gradient Descent Solver **************/
+mixin template AdagradMixin(T, CBLAS_LAYOUT layout)
 {
   private:
+  immutable(string) solverName;
   T learningRate;
-  ColumnVector!(T) pgradient_(AbstractDistribution!T distrib, AbstractLink!T link,
-      ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu, 
-      ColumnVector!T eta)
-  {
-    ulong p = x.ncol;
-    ulong ni = x.nrow;
-    auto grad = zerosColumn!T(p);
-    auto tmp = zerosColumn!(T)(ni);
-    for(ulong i = 0; i < ni; ++i)
-    {
-      tmp[i] = (y[i] - mu[i])/(link.deta_dmu(mu[i], eta[i]) * distrib.variance(mu[i]));
-      for(ulong j = 0; j < p; ++j)
-      {
-        grad[j] += tmp[i] * x[i, j];
-      }
-    }
-    return grad;
-  }
+  ColumnVector!(T) G;
+  T epsilon;
 
   public:
-  /* Weights */
-  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
-  {
-    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
-  }
-  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
-            ColumnVector!T mu, ColumnVector!T eta)
-  {
-    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
-  }
-  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
-              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
-  {
-    ulong n = mu.length;
-    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
-    for(ulong i = 0; i < n; ++i)
-      ret[i] = W(distrib, link, mu[i], eta[i]);
-    return ret;
-  }
-  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib,
-              AbstractLink!T link, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
-  {
-    ulong nBlocks = mu.length;
-    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
-    foreach(i; taskPool.parallel(iota(nBlocks)))
-      ret[i] = W(distrib, link, mu[i], eta[i]);
-    return ret;
-  }
-
-  /* Gradients */
-
-  /* Returns the average gradient calculated using (n - p) */
-  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link,
-              ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
-              ColumnVector!T eta)
-  {
-    ulong p = x.ncol;
-    ulong n = x.nrow;
-    auto grad = pgradient_(distrib, link, y, x, mu, eta);
-    assert(n > p, "Number of items n is not greater than the number of parameters p.");
-    //writeln("Raw Gradient: ", grad.getData);
-    //writeln("(n - p): ", n - p);
-    return grad/cast(T)(n - p);
-  }
-  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link, 
-              BlockColumnVector!(T) y, BlockMatrix!(T, layout) x,
-              BlockColumnVector!(T) mu, BlockColumnVector!T eta)
-  {
-    ulong nBlocks = y.length; ulong n = 0;
-    ulong p = x[0].ncol;
-    auto grad = zerosColumn!T(p);
-    for(ulong i = 0; i < nBlocks; ++i)
-    {
-      n += y[i].length;
-      grad += pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
-    }
-    //writeln("Raw Gradient (Block): ", grad.getData);
-    //writeln("(n - p): ", n - p);
-    assert(n > p, "Number of items n is not greater than the number of parameters p.");
-    return grad/cast(T)(n - p);
-  }
-  ColumnVector!(T) pgradient(Block1DParallel dataType, AbstractDistribution!T distrib,
-              AbstractLink!T link, BlockColumnVector!(T) y, 
-              BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
-              BlockColumnVector!T eta)
-  {
-    ulong nBlocks = y.length;
-    ulong p = x[0].ncol;
-
-    auto nStore = taskPool.workerLocalStorage(cast(ulong)0);
-    auto gradStore = taskPool.workerLocalStorage(zerosColumn!T(p));
-
-    foreach(i; taskPool.parallel(iota(nBlocks)))
-    {
-      nStore.get += y[i].length;
-      gradStore.get += pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
-    }
-
-    ulong n = 0;
-    auto grad = zerosColumn!T(p);
-    foreach(_n; nStore.toRange)
-      n += _n;
-    foreach(_grad; gradStore.toRange)
-      grad += _grad;
-    
-    assert(n > p, "Number of items n is not greater than the number of parameters p.");
-    return grad/cast(T)(n - p);
-  }
-
   /* Solver for standard matrices/vectors */
   void solve(AbstractDistribution!T distrib, AbstractLink!T link,
             ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
             ColumnVector!T eta, ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(distrib, link, y, x, mu, eta);
-    coef += learningRate * grad;
+    G += (coef^^2);
+    coef += (learningRate*grad)/((G + epsilon)^^0.5);
   }
   /* Solver for blocked matrices/vectors */
   void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
@@ -1894,7 +1780,8 @@ class GradientDescentOld(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradie
             ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(distrib, link, y, x, mu, eta);
-    coef += learningRate * grad;
+    G += (coef^^2);
+    coef += (learningRate*grad)/((G + epsilon)^^0.5);
   }
   /* Solver for parallel blocked matrices/vectors */
   void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
@@ -1903,52 +1790,34 @@ class GradientDescentOld(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradie
             BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
   {
     auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
-    coef += learningRate * grad;
+    G += (coef^^2);
+    coef += (learningRate*grad)/((G + epsilon)^^0.5);
   }
-  void XWX(ref Matrix!(T, layout) xwx, 
-              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
-              ref ColumnVector!(T) z, ref ColumnVector!(T) w)
+  immutable(string) name()
   {
-    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
-    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+    return solverName;
   }
-  void XWX(ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
-              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
   {
-    ulong p = x[0].ncol;
-    xwx = zerosMatrix!(T, layout)(p, p);
-    ulong nBlocks = x.length;
-    for(ulong i = 0; i < nBlocks; ++i)
-    {
-      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
-      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
-    }
+    return;
   }
-  void XWX(Block1DParallel dataType, ref Matrix!(T, layout) xwx, 
-              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
-              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
   {
-    ulong p = x[0].ncol;
-
-    xwx = zerosMatrix!(T, layout)(p, p);
-    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
-
-    ulong nBlocks = x.length;
-    foreach(i; taskPool.parallel(iota(nBlocks)))
-    {
-      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
-      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
-    }
-    foreach (_xwx; XWX.toRange)
-      xwx += _xwx;
+    return;
   }
-  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx)
-  {
-    return inverse.inv(xwx);
-  }
-  this(T _learningRate)
+  /* momentum typical value of 0.9 */
+  this(T _learningRate, T _epsilon, ulong p)
   {
     learningRate = _learningRate;
+    epsilon = _epsilon;
+    G = zerosColumn!T(p);
+    solverName = "Adagrad";
   }
+}
+
+class Adagrad(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  mixin GradientMixin!(T, layout);
+  mixin AdagradMixin!(T, layout);
 }
