@@ -15,5 +15,7 @@ void main()
   //gdMomentumDataDemo();
   //gdNesterovDataDemo();
   //gdNesterovVsMomentumDemo();
-  gdNesterovVsAdagradDemo();
+  //gdNesterovVsAdagradDemo();
+  //gdNesterovVsAdadeltaDemo();
+  gdNesterovVsRMSpropDemo();
 }

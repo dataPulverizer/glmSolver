@@ -1082,7 +1082,7 @@ if(isFloatingPoint!T)
 
     T frac = 1;
     auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
-
+    
     //Step Control
     while(dev > (devold + control.epsilon*dev))
     {
@@ -1097,9 +1097,9 @@ if(isFloatingPoint!T)
       }
       frac *= 0.5;
       coef = map!( (T x1, T x2) => x1 + (x2 * frac) )(coefold, coefdiff);
-
+      
       //writeln("Step control coefficient: ", coef.getData, "\n");
-
+      
       if(control.printCoef)
         writeln(coef);
       
@@ -1114,14 +1114,14 @@ if(isFloatingPoint!T)
           eta[i] += offset[i];
       }
       mu = link.linkinv(dataType, eta);
-
+      
       if(weights.length == 0)
         residuals = distrib.devianceResiduals(dataType, mu, y);
       else
         residuals = distrib.devianceResiduals(dataType, mu, y, weights);
       
       //writeln("First part of the deviance residuals: ", residuals[0].getData[0..10]);
-
+      
       dev = 0;
       devStore = taskPool.workerLocalStorage(cast(T)0);
       /* Parallel reduction required */
@@ -1131,15 +1131,17 @@ if(isFloatingPoint!T)
         dev += _dev;
       
       //writeln("Calculated step control deviance: ", dev);
-
+      
       absErr = absoluteError(dev, devold);
       relErr = relativeError(dev, devold);
-
+      
       if(frac < control.minstep)
         assert(0, "Step control exceeded.");
     }
     devold = dev;
     coefold = coef.dup;
+
+    //writeln("Coefficient: ", coef.getData);
 
     if(control.printError)
     {

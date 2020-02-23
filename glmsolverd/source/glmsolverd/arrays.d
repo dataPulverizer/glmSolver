@@ -191,7 +191,16 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
     }
     Matrix!(T, L) opBinaryRight(string op)(T lhs)
     {
-      return opBinary!(op)(lhs);
+      ulong n = data.length;
+      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+      {
+        for(ulong i = 0; i < n; ++i)
+        {
+          mixin("ret.getData[i] = " ~ "lhs " ~ op ~ " data[i];");
+        }
+      }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
+      return ret;
     }
     void opOpAssign(string op)(Matrix!(T, L) x)
     {
@@ -435,7 +444,7 @@ if(isNumeric!T)
     {
       auto ret = data.dup;
       for(ulong i = 0; i < data.length; ++i)
-        mixin("ret[i] = data[i] " ~ op ~ " rhs;");
+        mixin("ret[i] = ret[i] " ~ op ~ " rhs;");
       return new ColumnVector!(T)(ret);
     } else static assert(0, "Operator " ~ op ~ " not implemented");
   }

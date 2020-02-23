@@ -1667,7 +1667,6 @@ mixin template MomentumMixin(T, CBLAS_LAYOUT layout)
   {
     return;
   }
-  /* momentum typical value of 0.9 */
   this(T _learningRate, T _momentum, ulong p)
   {
     learningRate = _learningRate;
@@ -1737,7 +1736,6 @@ mixin template NesterovMixin(T, CBLAS_LAYOUT layout)
     coef += momentum * delta;
     return;
   }
-  /* momentum typical value of 0.9 */
   this(T _learningRate, T _momentum, ulong p)
   {
     learningRate = _learningRate;
@@ -1754,7 +1752,7 @@ class Nesterov(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(
   mixin NesterovMixin!(T, layout);
 }
 
-/***************** Momentum Gradient Descent Solver **************/
+/***************** Adagrad Gradient Descent Solver **************/
 mixin template AdagradMixin(T, CBLAS_LAYOUT layout)
 {
   private:
@@ -1806,7 +1804,6 @@ mixin template AdagradMixin(T, CBLAS_LAYOUT layout)
   {
     return;
   }
-  /* momentum typical value of 0.9 */
   this(T _learningRate, T _epsilon, ulong p)
   {
     learningRate = _learningRate;
@@ -1821,3 +1818,154 @@ class Adagrad(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T
   mixin GradientMixin!(T, layout);
   mixin AdagradMixin!(T, layout);
 }
+
+/***************** Adadelta Gradient Descent Solver **************/
+mixin template AdadeltaMixin(T, CBLAS_LAYOUT layout)
+{
+  private:
+  immutable(string) solverName;
+  T momentum;
+  ColumnVector!(T) G;
+  ColumnVector!(T) B;
+  T epsilon;
+
+  public:
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    auto momentumM1 = (1 - momentum);
+    G = (momentum*G) + (momentumM1*(grad^^2));
+    ColumnVector!(T) diff = (grad*((B + epsilon)^^0.5))/((G + epsilon)^^0.5);
+    coef += diff;
+    B += (momentum*B) + (momentumM1*(diff^^2));
+  }
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    auto momentumM1 = (1 - momentum);
+    G = (momentum*G) + (momentumM1*(grad^^2));
+    ColumnVector!(T) diff = (grad*((B + epsilon)^^0.5))/((G + epsilon)^^0.5);
+    coef += diff;
+    B += (momentum*B) + (momentumM1*(diff^^2));
+  }
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
+    auto momentumM1 = (1 - momentum);
+    G = (momentum*G) + (momentumM1*(grad^^2));
+    ColumnVector!(T) diff = (grad*((B + epsilon)^^0.5))/((G + epsilon)^^0.5);
+    coef += diff;
+    B += (momentum*B) + (momentumM1*(diff^^2));
+  }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  this(T _momentum, T _epsilon, ulong p)
+  {
+    momentum = _momentum;
+    G = zerosColumn!T(p);
+    B = zerosColumn!T(p);
+    epsilon = _epsilon;
+    solverName = "Adadelta";
+  }
+}
+
+class Adadelta(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  mixin GradientMixin!(T, layout);
+  mixin AdadeltaMixin!(T, layout);
+}
+
+/***************** RMSprop Gradient Descent Solver **************/
+mixin template RMSpropMixin(T, CBLAS_LAYOUT layout)
+{
+  private:
+  immutable(string) solverName;
+  T learningRate;
+  ColumnVector!(T) G;
+  T epsilon;
+
+  public:
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    G = (0.9*G) + (0.1*(grad^^2));
+    ColumnVector!(T) diff = (learningRate*grad)/((G + epsilon)^^0.5);
+    coef += diff;
+  }
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    G = (0.9*G) + (0.1*(grad^^2));
+    ColumnVector!(T) diff = (learningRate*grad)/((G + epsilon)^^0.5);
+    coef += diff;
+  }
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
+    G = (0.9*G) + (0.1*(grad^^2));
+    ColumnVector!(T) diff = (learningRate*grad)/((G + epsilon)^^0.5);
+    coef += diff;
+  }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  this(T _learningRate, T _epsilon, ulong p)
+  {
+    learningRate = _learningRate;
+    G = zerosColumn!T(p);
+    epsilon = _epsilon;
+    solverName = "RMSprop";
+  }
+}
+
+
+class RMSprop(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  mixin GradientMixin!(T, layout);
+  mixin RMSpropMixin!(T, layout);
+}
+
+
