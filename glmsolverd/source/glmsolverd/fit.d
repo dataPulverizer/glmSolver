@@ -1020,6 +1020,9 @@ if(isFloatingPoint!T)
     if(control.printError)
       writeln("Iteration: ", iter);
 
+    /* For Adam */
+    solver.passIteration(iter);
+
     /* Recalculate eta and mu for Nesterov with modified coefficient */
     if(solver.name == "Nesterov")
     {
