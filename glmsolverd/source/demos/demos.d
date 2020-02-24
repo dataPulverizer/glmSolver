@@ -460,12 +460,6 @@ void parallelBlockGLMDemo()
         new VanillaSolver!(double)(), new GETRIInverse!(double)());
   writeln("Regular Model\n", gammaModel);
   /***************************************************************/
-  /* Gradient Descent */
-  gammaModel = glm!(double)(new RegularData(), energyX, 
-        energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new GradientDescent!(double)(1E-5), new GETRIInverse!(double)(),
-        new Control!(double)(50));
-  writeln("Gradient Descent solver with regular data \n", gammaModel);
 }
 
 

@@ -8,7 +8,7 @@ void main()
   //distribBlockDemo();
   //blockGLMDemo();
   //testParallel();
-  //parallelBlockGLMDemo();
+  parallelBlockGLMDemo();
   //gradientDescentGLMDemo();
   //testBlockIO();
   //gdMomentumDemo();
@@ -18,5 +18,5 @@ void main()
   //gdNesterovVsAdagradDemo();
   //gdNesterovVsAdadeltaDemo();
   //gdNesterovVsRMSpropDemo();
-  gdNesterovVsAdamDemo();
+  //gdNesterovVsAdamDemo();
 }
