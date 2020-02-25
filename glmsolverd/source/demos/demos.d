@@ -360,7 +360,6 @@ void testParallel()
 }
 
 
-
 void parallelBlockGLMDemo()
 {
   string path = "/home/chib/code/glmSolver/data/";
@@ -694,16 +693,16 @@ void gdNesterovVsRMSpropDemo()
 void gdNesterovVsAdamDemo()
 {
   string path = "/home/chib/code/glmSolver/data/";
-
+  
   auto energyBlockX = readBlockMatrix!(double)(path ~ "energyScaledBlockX/");
   auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
   
   auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
   auto energyY = readMatrix!(double)(path ~ "energyY.bin");
-
+  
   /* Number of parameters */
   auto p = energyBlockX[0].ncol;
-
+  
   /***************************************************************/
   /* Gradient Descent Nesterov Block Model */
   auto gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
@@ -712,16 +711,52 @@ void gdNesterovVsAdamDemo()
         new GETRIInverse!(double)(), new Control!(double)(10), 
         totalCPUs, true);
   writeln("Nesterov Gradient Descent With Parallel Block Data \n", gammaModel);
-
+  
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Adam!(double)(1E1, 0.9, 0.999, 1E-6, p),
+        new Adam!(double)(1E-6, 0.9, 0.999, 1E-6, p),
         new GETRIInverse!(double)(), new Control!(double)(100), 
         totalCPUs, true);
   writeln("Adam Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 
+void gdNesterovVsAdaMaxDemo()
+{
+  string path = "/home/chib/code/glmSolver/data/";
+  
+  auto energyBlockX = readBlockMatrix!(double)(path ~ "energyScaledBlockX/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  
+  auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  
+  /* Number of parameters */
+  auto p = energyBlockX[0].ncol;
+  
+  /***************************************************************/
+  /* Gradient Descent Nesterov Block Model */
+  auto gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new Nesterov!(double)(1E-6, 0.9, p),
+        new GETRIInverse!(double)(), new Control!(double)(10), 
+        totalCPUs, true);
+  writeln("Nesterov Gradient Descent With Parallel Block Data \n", gammaModel);
+  
+  gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new AdaMax!(double)(1E-6, 0.9, 0.999, p),
+        new GETRIInverse!(double)(), new Control!(double)(10), 
+        totalCPUs, false);
+  writeln("Adam Gradient Descent With Parallel Block Data \n", gammaModel);
+}
 
+void normDemo()
+{
+  /* Quick test to see if norm is functioning correctly */
+  //auto x = new ColumnVector!float([1.0f, 2f, 3f, 4f, 5f, 6f, 7f, 8f, 9f, 10f]);
+  auto x = new ColumnVector!double([1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  writeln("Norm demo: ", norm(x), "\n");
+}
 
 void gradientDescentGLMDemo()
 {

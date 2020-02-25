@@ -11,12 +11,14 @@ import glmsolverd.distributions;
 import glmsolverd.tools;
 
 import std.conv: to;
+import std.algorithm: max;
 import std.typecons: Tuple, tuple;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
 
 import std.parallelism;
 import std.range : iota;
-import std.math: pow;
+import std.math: pow, fmax;
+alias fmax max;
 
 import std.stdio: writeln;
 /*
@@ -164,6 +166,19 @@ alias LAPACKE_dsytri sytri;
 double norm(int incr = 1)(double[] x)
 {
 	return cblas_dnrm2(cast(int)x.length, x.ptr , incr);
+}
+double norm(T, int incr = 1)(ColumnVector!T x)
+if(is(T == double))
+{
+  return cblas_dnrm2(cast(int)x.length, x.getData.ptr , incr);
+}
+double norm(T, int incr = 1)(ColumnVector!T x)
+if((!is(T == double)) && isNumeric!T)
+{
+  T ret = 0; ulong n = x.length;
+  for(ulong i = 0; i < n; ++i)
+    ret += x[i]^^2;
+  return ret^^0.5;
 }
 /********************************************* Matrix Multiplication ******************************************/
 /* Matrix-Matrix multiplication */
@@ -2064,6 +2079,108 @@ class Adam(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, l
 {
   mixin GradientMixin!(T, layout);
   mixin AdamMixin!(T, layout);
+}
+
+
+/***************** AdaMax Gradient Descent Solver **************/
+mixin template AdaMaxMixin(T, CBLAS_LAYOUT layout)
+{
+  private:
+  immutable(string) solverName;
+  T learningRate;
+  T b1;
+  T b2;
+  ColumnVector!(T) m;
+  T v;
+  ulong iter;
+  //T epsilon;
+
+  public:
+  /* Solver for standard matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link,
+            ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+            ColumnVector!T eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+
+    T absG = norm(grad);
+    v = (b2*v) + ((1 - b2)*absG);
+    T u = max(b2*v, absG);
+    m = (b1*m) + ((1 - b1)*grad);
+    ColumnVector!(T) mp = m/(1 - (b1^^iter));
+    ColumnVector!(T) diff = (learningRate * mp)/u;
+    
+    coef += diff;
+  }
+  /* Solver for blocked matrices/vectors */
+  void solve(AbstractDistribution!T distrib, AbstractLink!T link, 
+            BlockColumnVector!(T) y, BlockMatrix!(T, layout) x, 
+            BlockColumnVector!(T) mu, BlockColumnVector!(T) eta,
+            ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(distrib, link, y, x, mu, eta);
+    
+    T absG = norm(grad);
+    v = (b2*v) + ((1 - b2)*absG);
+    T u = max(b2*v, absG);
+    m = (b1*m) + ((1 - b1)*grad);
+    ColumnVector!(T) mp = m/(1 - (b1^^iter));
+    ColumnVector!(T) diff = (learningRate * mp)/u;
+
+    coef += diff;
+  }
+  /* Solver for parallel blocked matrices/vectors */
+  void solve(Block1DParallel dataType, AbstractDistribution!T distrib, 
+            AbstractLink!T link, BlockColumnVector!(T) y, 
+            BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+            BlockColumnVector!(T) eta, ref ColumnVector!(T) coef)
+  {
+    auto grad = pgradient(dataType, distrib, link, y, x, mu, eta);
+    
+    //writeln("gradient: ", grad.getData, "\n");
+    T absG = norm(grad);
+    //writeln("Norm: ", absG);
+    v = (b2*v) + ((1 - b2)*absG);
+    //writeln("v: ", v);
+    T u = max(b2*v, absG);
+    m = (b1*m) + ((1 - b1)*grad);
+    ColumnVector!(T) mp = m/(1 - (b1^^iter));
+    //writeln("mp: ", mp.getData, "\n");
+    ColumnVector!(T) diff = (learningRate * mp)/u;
+
+    coef += diff;
+  }
+  immutable(string) name()
+  {
+    return solverName;
+  }
+  /* Modify/Unmodify coefficients for Nesterov */
+  void NesterovModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void NesterovUnModifier(ref ColumnVector!(T) coef)
+  {
+    return;
+  }
+  void passIteration(ulong _iter)
+  {
+    iter = _iter;
+  }
+  /* b1 = 0.9, b2 = 0.999 */
+  this(T _learningRate, T _b1, T _b2, /* T _epsilon, */ ulong p)
+  {
+    learningRate = _learningRate;
+    /* epsilon = _epsilon; */ b1 = _b1; b2 = _b2;
+    m = zerosColumn!T(p); v = 0;
+    iter = 1; solverName = "AdaMax";
+  }
+}
+
+class AdaMax(T, CBLAS_LAYOUT layout = CblasColMajor): AbstractGradientSolver!(T, layout)
+{
+  mixin GradientMixin!(T, layout);
+  mixin AdaMaxMixin!(T, layout);
 }
 
 
