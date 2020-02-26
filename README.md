@@ -2,19 +2,19 @@
 
 Solvers for GLM that specialize in calculations on larger datasets that do not fit into memory and minimizing the memory required to run algorithms and using multicores.
 
-This library implements Generalized Linear Models in both Julia and the D programming language. It attempts to create a comprehensive library that can handle larger datasets on multicore machines by dividing the computations to blocks that can be carried out in memory (for speed) and on disk (to conserve computational resources). It offers a variety of solvers that gives the user choice, flexibility and control, and also aims to be a fully comprehensive library in terms of post processing and to be comparable in performance with the best open source GLM solver libraries, comprehensive, convenient and simple to install and use on the Ubuntu (Linux) operating system.
+This library implements Generalized Linear Models in both Julia and the D programming language. It attempts to create a comprehensive library that can handle larger datasets on multicore machines by dividing the computations to blocks that can be carried out in memory (for speed) and on disk (to conserve computational resources). It offers a variety of solvers that gives the user choice, flexibility and control, and also aims to be a fully comprehensive library in terms of post processing and to be comparable in performance with the best open source GLM solver libraries, comprehensive, convenient and simple to install and use. It is currently being implemented on the Ubuntu (Linux) operating system, but could later be ported to other systems.
 
 ## Prerequisites
 
-* Julia, D, & R programming languages
+* Julia, D, & R programming languages, Linux Ubuntu OS - unless you are
+  happy sorting out the BLAS/LAPACK header dependencies yourself in D.
 * Openblas BLAS/LAPACK library
 * At the moment the demos reference data not included in this repo.
 In time I'll replace this with simulated data to remove that dependency.
 
 ## Feature Development
 
-Following is a list of items that need to be completed in order to finish the implementation of the GLM library intended
-to be the replacement of bigReg.
+Following is a list of items that need to be completed in order to finish the implementation of the GLM library intended to be the replacement of my bigReg.
 
 Version 0.1 Core Functionality Implementation
 ---------------------------------------------------------------------------------------------------------------------
@@ -75,12 +75,14 @@ can be tried out. Link Functions:
   - [ ] v. Implement parallel solver algorithms.
     - [x] 1. 1-D block representation of matrices.
     - [ ] 2. 2-D block representation of matrices.
-  - [ ] vi. Include gradient descent solver.
+  - [ ] vi. Include gradient descent solver - *currently working on this* .
   - [ ] vii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
   - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking. So that users can demo without
   data dependancy.
   - [ ] ix. Implement L-BFGS solver options.
   - [ ] x. Include a sparse solver?
+  - [ ] xi. Is there a case for substituting D's `new T[]` notation for
+  the initialiaztion used [here](https://gist.github.com/dataPulverizer/4897b01a8cb501eae8107c4220e36a82) which is faster for initilizations especially for non default values and can be parallelised.
 - [ ] 3. Implement memory and disk blocked matrix structure in Julia & D and
          integrate them with your current algorithm. Creating a generic interface that could contend with any data structure with the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data structures - Done for memory.
