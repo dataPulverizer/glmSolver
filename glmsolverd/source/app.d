@@ -22,5 +22,5 @@ void main()
   //gdNesterovVsAdaMaxDemo();
   //normDemo();
   //gdNesterovVsNAdamDemo();
-  gdNesterovVsAMSGradDemo();
+  //gdNesterovVsAMSGradDemo();
 }

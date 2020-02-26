@@ -83,6 +83,7 @@ can be tried out. Link Functions:
   - [ ] x. Include a sparse solver?
   - [ ] xi. Is there a case for substituting D's `new T[]` notation for
   the initialiaztion used [here](https://gist.github.com/dataPulverizer/4897b01a8cb501eae8107c4220e36a82) which is faster for initilizations especially for non default values and can be parallelised.
+  - [ ] xii. Code refactoring.
 - [ ] 3. Implement memory and disk blocked matrix structure in Julia & D and
          integrate them with your current algorithm. Creating a generic interface that could contend with any data structure with the right methods returning the right types to the function(s).
 - [ ] 4. Implement or adapt the current GLM algorithm to work with the memory and disk based blocked matrix data structures - Done for memory.

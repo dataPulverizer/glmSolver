@@ -1420,6 +1420,11 @@ interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
 mixin template GradientMixin(T, CBLAS_LAYOUT layout)
 {
   private:
+  /*
+    This is not the gradient, it doesn't include phi, which I omit because
+    it should be a constant. Might add the actual gradient function later
+    for comparison.
+  */
   ColumnVector!(T) pgradient_(AbstractDistribution!T distrib, AbstractLink!T link,
       ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu, 
       ColumnVector!T eta)

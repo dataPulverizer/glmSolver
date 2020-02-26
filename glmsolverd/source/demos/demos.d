@@ -804,7 +804,7 @@ void gdNesterovVsNAdamDemo()
   
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new NAdam!(double)(1E0, 0.9, 0.999, 1E-6, p),
+        new NAdam!(double)(1E-2, 0.9, 0.999, 1E-6, p),
         new GETRIInverse!(double)(), new Control!(double)(10), 
         totalCPUs, true);
   writeln("NAdam Gradient Descent With Parallel Block Data \n", gammaModel);
@@ -834,9 +834,9 @@ void gdNesterovVsAMSGradDemo()
   
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new AMSGrad!(double)(1E-1, 0.9, 0.999, 1E-6, p),
+        new AMSGrad!(double)(1E-2, 0.8, 0.999, 1E-6, p),
         new GETRIInverse!(double)(), new Control!(double)(10), 
-        totalCPUs, true);
+        totalCPUs, false);
   writeln("AMSGrad Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 

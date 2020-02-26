@@ -545,21 +545,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
 if(isFloatingPoint!T)
 {
   auto init = distrib.init(_y, weights);
-  auto y = init[0]; auto mu = init[1]; weights = init[2];
-  auto eta = link.linkfun(mu);
-
-  //auto coef = zerosColumn!T(x.ncol);
-  auto n = x.nrow; auto p = x.ncol;
-
-  //auto coef = sampleStandardNormal!T(p)/p;
-  auto coef = zerosColumn!T(p);
-  auto coefold = zerosColumn!T(x.ncol);
-
-  auto absErr = T.infinity;
-  auto relErr = T.infinity;
-  auto residuals = zerosColumn!T(y.len);
-  auto dev = T.infinity;
-  auto devold = T.infinity;
+  auto y = init[0]; weights = init[1];
 
   ulong iter = 1;
   bool converged, badBreak, doOffset, doWeights;
@@ -568,6 +554,22 @@ if(isFloatingPoint!T)
     doOffset = true;
   if(weights.len != 0)
     doWeights = true;
+  
+  auto n = x.nrow; auto p = x.ncol;
+  //auto coef = sampleStandardNormal!T(p)/p;
+  auto coef = zerosColumn!T(p);
+  auto coefold = zerosColumn!T(x.ncol);
+
+  auto eta = mult_(x, coef);
+  if(doOffset)
+    eta += offset;
+  auto mu = link.linkinv(eta);
+
+  auto absErr = T.infinity;
+  auto relErr = T.infinity;
+  auto residuals = zerosColumn!T(y.len);
+  auto dev = T.infinity;
+  auto devold = T.infinity;
   
   //writeln("Print some values from X");
   //for(ulong i = 0; i < 10; ++i)
@@ -750,14 +752,14 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
 if(isFloatingPoint!T)
 {
   auto nBlocks = _y.length;
-  auto init = distrib.init(_y, weights);
-  ColumnVector!(T)[] y = init[0]; 
-  ColumnVector!(T)[] mu = init[1]; weights = init[2];
-  auto eta = link.linkfun(mu);
+  auto init = distrib.init(solver, _y, weights);
+  ColumnVector!(T)[] y = init[0]; weights = init[1];
+  auto eta = new ColumnVector!(T)[nBlocks];
+  auto mu = new ColumnVector!(T)[nBlocks];
 
   auto p = x[0].ncol;
-  //auto coef = sampleStandardNormal!T(p)/p;
   auto coef = zerosColumn!T(p);
+  //auto coef = sampleStandardNormal!T(p)/p;
   auto coefold = zerosColumn!T(p);
 
   auto absErr = T.infinity;
@@ -777,12 +779,22 @@ if(isFloatingPoint!T)
     doOffset = true;
   if(weights.length != 0)
     doWeights = true;
+
+  for(ulong i = 0; i < nBlocks; ++i)
+    eta[i] = mult_(x[i], coef);
+  
+  if(doOffset)
+  {
+    for(ulong i = 0; i < nBlocks; ++i)
+      eta[i] += offset[i];
+  }
+  mu = link.linkinv(eta);
   
   //writeln("Print some values from X");
   //for(ulong i = 0; i < 10; ++i)
   //  for(ulong j = 0; j < 10; ++j)
   //    writeln("X(", i, ", ", j,"): ", x[0][i, j]);
-
+  
   Matrix!(T, layout) cov, xwx, R;
   ColumnVector!(T)[] w;
   Matrix!(T, layout)[] xw;
@@ -974,14 +986,14 @@ if(isFloatingPoint!T)
   openblas_set_num_threads(1);
   defaultPoolThreads(nThreads);
   auto nBlocks = _y.length;
-  auto init = distrib.init(_y, weights);
-  ColumnVector!(T)[] y = init[0]; 
-  ColumnVector!(T)[] mu = init[1]; weights = init[2];
-  auto eta = link.linkfun(mu);
+  auto init = distrib.init(solver, dataType, _y, weights);
+  ColumnVector!(T)[] y = init[0]; weights = init[1];
+  auto eta = new ColumnVector!(T)[nBlocks];
+  auto mu = new ColumnVector!(T)[nBlocks];
 
   auto p = x[0].ncol;
-  //auto coef = sampleStandardNormal!T(p)/p;
   auto coef = zerosColumn!T(p);
+  //auto coef = sampleStandardNormal!T(p)/p;
   auto coefold = zerosColumn!T(p);
 
   auto absErr = T.infinity;
@@ -1006,6 +1018,16 @@ if(isFloatingPoint!T)
     doOffset = true;
   if(weights.length != 0)
     doWeights = true;
+  
+  foreach(i; taskPool.parallel(iota(nBlocks)))
+    eta[i] = mult_(x[i], coef);
+  
+  if(doOffset)
+  {
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      eta[i] += offset[i];
+  }
+  mu = link.linkinv(dataType, eta);
   
   //writeln("Print some values from X");
   //for(ulong i = 0; i < 10; ++i)

@@ -15,10 +15,16 @@ import std.typecons: Tuple, tuple;
 import std.parallelism;
 import std.range : iota;
 
+import glmsolverd.linearalgebra: AbstractGradientSolver;
+
 /******************************************* Distributions *********************************/
 template initType(T)
 {
   alias initType = Tuple!(T, T, T);
+}
+template initDouble(T)
+{
+  alias initDouble = Tuple!(T, T);
 }
 /* Probability Distributions */
 abstract class AbstractDistribution(T)
@@ -63,6 +69,37 @@ abstract class AbstractDistribution(T)
     }
     return tuple(y, mu, wts);
   }
+
+  /*
+    Initializers for gradient descent, solver is just for dispatch
+  */
+  initDouble!(ColumnVector!T) init(AbstractGradientSolver!(T) solver, Matrix!(T) _y, ColumnVector!T wts)
+  {
+    auto y = cast(ColumnVector!(T))_y;
+    return tuple(y, wts);
+  }
+  initDouble!(BlockColumnVector!(T)) init(AbstractGradientSolver!(T) solver, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong n = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+    {
+      y[i] = cast(ColumnVector!(T))_y[i];
+    }
+    return tuple(y, wts);
+  }
+  initDouble!(BlockColumnVector!(T)) init(AbstractGradientSolver!(T) solver, Block1DParallel dataType, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    ulong nBlocks = _y.length;
+    BlockColumnVector!(T) y = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      y[i] = cast(ColumnVector!(T))_y[i];
+    }
+    return tuple(y, wts);
+  }
+  
+  
   BlockColumnVector!(T) variance(BlockColumnVector!(T) mu);
   
   //BlockColumnVector!(T) variance(Block1DParallel dataType, BlockColumnVector!(T) mu);
@@ -308,6 +345,95 @@ class BinomialDistribution(T) : AbstractDistribution!(T)
     }
     return tuple(y, mu, wts);
   }
+
+  /*
+    Initializers for gradient descent
+  */
+  override initDouble!(ColumnVector!T) init(AbstractGradientSolver!(T) solver, Matrix!(T) _y, ColumnVector!T wts)
+  {
+    ColumnVector!(T) y;
+    bool hasWeights = wts.len > 0;
+    if(_y.ncol == 1)
+    {
+      y = cast(ColumnVector!(T))_y;
+    }else if(_y.ncol > 1)
+    {
+      y = new ColumnVector!(T)(_y.nrow);
+      wts = new ColumnVector!(T)(_y.nrow);
+      for(ulong i = 0; i < _y.nrow; ++i)
+      {
+        wts[i] = _y[i, 0] + _y[i, 1];
+        y[i] = _y[i, 0]/wts[i];
+      }
+    }
+    return tuple(y, wts);
+  }
+  override initDouble!(BlockColumnVector!(T)) init(AbstractGradientSolver!(T) solver, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    BlockColumnVector!(T) y;
+    bool hasWeights = wts.length > 0;
+    if(_y[0].ncol == 1)
+    {
+      y = new ColumnVector!(T)[_y.length];
+      for(ulong i = 0; i < y.length; ++i)
+        y[i] = cast(ColumnVector!(T))_y[i];
+      if(wts.length != 0)
+      {
+        y = new ColumnVector!(T)[_y.length];
+        for(ulong i = 0; i < _y.length; ++i)
+        {
+          ulong b = _y[i].ncol;
+          y[i] = cast(ColumnVector!(T))_y[i];
+        }
+      }
+    }else if(_y[0].ncol > 1)
+    {
+      ulong n = _y.length;
+      y = new ColumnVector!(T)[n];
+      wts = new ColumnVector!(T)[n];
+      for(ulong i = 0; i < n; ++i)
+      {
+        ulong m = _y[i].nrow;
+        y[i] = zerosColumn!(T)(m);
+        wts[i] = zerosColumn!(T)(m);
+        for(ulong j = 0; j < m; ++j)
+        {
+          wts[i][j] = _y[i][j, 0] + _y[i][j, 1];
+          y[i][j] = _y[i][j, 0]/wts[i][j];
+        }
+      }
+    }
+    return tuple(y, wts);
+  }
+  override initDouble!(BlockColumnVector!(T)) init(AbstractGradientSolver!(T) solver, Block1DParallel dataType, BlockMatrix!(T) _y, BlockColumnVector!(T) wts)
+  {
+    BlockColumnVector!(T) y;
+    bool hasWeights = wts.length > 0;
+    immutable(ulong) nBlocks = _y.length;
+    if(_y[0].ncol == 1)
+    {
+      y = new ColumnVector!(T)[nBlocks];
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+        y[i] = cast(ColumnVector!(T))_y[i];
+    }else if(_y[0].ncol > 1)
+    {
+      y = new ColumnVector!(T)[nBlocks];
+      wts = new ColumnVector!(T)[nBlocks];
+
+      foreach(i; taskPool.parallel(iota(nBlocks)))
+      {
+        ulong m = _y[i].nrow;
+        y[i] = zerosColumn!(T)(m);
+        wts[i] = zerosColumn!(T)(m);
+        for(ulong j = 0; j < m; ++j)
+        {
+          wts[i][j] = _y[i][j, 0] + _y[i][j, 1];
+          y[i][j] = _y[i][j, 0]/wts[i][j];
+        }
+      }
+    }
+    return tuple(y, wts);
+  }
   //mixin BlockDistributionGubbings!();
   override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
   {
@@ -430,6 +556,7 @@ class PoissonDistribution(T) : AbstractDistribution!(T)
       mu[i] = map!( (T m) => m + 0.1 )(y[i]);
     return tuple(y, mu, wts);
   }
+
   //mixin BlockDistributionGubbings!();
   override BlockColumnVector!(T) variance(BlockColumnVector!(T) mu)
   {
