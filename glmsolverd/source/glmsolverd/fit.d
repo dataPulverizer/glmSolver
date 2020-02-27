@@ -540,6 +540,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(),
         bool calculateCovariance = true, 
+        bool doStepControl = true, 
         ColumnVector!T offset = zerosColumn!T(0),
         ColumnVector!T weights = zerosColumn!T(0))
 if(isFloatingPoint!T)
@@ -630,7 +631,7 @@ if(isFloatingPoint!T)
     auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
 
     //Step Control
-    while(dev > (devold + control.epsilon*dev))
+    while(doStepControl && (dev > (devold + control.epsilon*dev)))
     {
       //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
       if(control.printError)
@@ -747,7 +748,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         AbstractGradientSolver!(T) solver, 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(), bool calculateCovariance = true, 
-        ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
+        bool doStepControl = true, ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
 {
@@ -858,7 +859,7 @@ if(isFloatingPoint!T)
     auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
 
     //Step Control
-    while(dev > (devold + control.epsilon*dev))
+    while(doStepControl && (dev > (devold + control.epsilon*dev)))
     {
       //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
       if(control.printError)
@@ -979,6 +980,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Control!T control = new Control!T(), 
         uint nThreads = cast(uint)(totalCPUs - 1), 
         bool calculateCovariance = true,
+        bool doStepControl = true,
         ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
 if(isFloatingPoint!T)
@@ -1109,7 +1111,7 @@ if(isFloatingPoint!T)
     auto coefdiff = map!( (x1, x2) => x1 - x2 )(coef, coefold);
     
     //Step Control
-    while(dev > (devold + control.epsilon*dev))
+    while(doStepControl && (dev > (devold + control.epsilon*dev)))
     {
       //writeln("Entered step control deviance: ", dev, ", old deviance: ", devold);
       if(control.printError)

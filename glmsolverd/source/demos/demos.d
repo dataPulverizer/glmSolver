@@ -537,18 +537,23 @@ void gdNesterovDataDemo()
   string path = "/home/chib/code/glmSolver/data/";
 
   auto energyBlockX = readBlockMatrix!(double)(path ~ "energyScaledBlockX/");
-  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyScaledBlockY/");
   
   auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
-  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyScaledY.bin");
 
   /* Number of parameters */
   auto p = energyBlockX[0].ncol;
 
+  auto gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
+        energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Full GLM Solve\n", gammaModel);
+
   writeln("The outputs for all these models should be the same.");
-  auto gammaModel = glm!(double)(new RegularData(), energyX, 
+  gammaModel = glm!(double)(new RegularData(), energyX, 
         energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Nesterov!(double)(1E-6, 0.9, p), new GETRIInverse!(double)(),
+        new Nesterov!(double)(1E-3, 0.9, p), new GETRIInverse!(double)(),
         new Control!(double)(10), true);
   writeln("Nesterov Gradient Descent With Regular Data\n", gammaModel);
   /***************************************************************/
@@ -558,7 +563,7 @@ void gdNesterovDataDemo()
         new Nesterov!(double)(1E-6, 0.9, p), new GETRIInverse!(double)(),
         new Control!(double)(10), true);
   writeln("Nesterov Gradient Descent With Block Data \n", gammaModel);
-
+  
   /* Gradient Descent Nesterov Block Model */
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
@@ -810,15 +815,15 @@ void gdNesterovVsNAdamDemo()
   writeln("NAdam Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 
-void gdNesterovVsAMSGradDemo()
+void gdActualVsAMSGradDemo()
 {
   string path = "/home/chib/code/glmSolver/data/";
-  
+
   auto energyBlockX = readBlockMatrix!(double)(path ~ "energyScaledBlockX/");
-  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyBlockY/");
+  auto energyBlockY = readBlockMatrix!(double)(path ~ "energyScaledBlockY/");
   
   auto energyX = readMatrix!(double)(path ~ "energyScaledX.bin");
-  auto energyY = readMatrix!(double)(path ~ "energyY.bin");
+  auto energyY = readMatrix!(double)(path ~ "energyScaledY.bin");
   
   /* Number of parameters */
   auto p = energyBlockX[0].ncol;
@@ -827,16 +832,15 @@ void gdNesterovVsAMSGradDemo()
   /* Gradient Descent Nesterov Block Model */
   auto gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Nesterov!(double)(1E-6, 0.9, p),
-        new GETRIInverse!(double)(), new Control!(double)(10), 
-        totalCPUs, true);
-  writeln("Nesterov Gradient Descent With Parallel Block Data \n", gammaModel);
+        new VanillaSolver!(double)(), new GETRIInverse!(double)());
+  writeln("Full GLM Solve\n", gammaModel);
   
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new AMSGrad!(double)(1E-2, 0.8, 0.999, 1E-6, p),
-        new GETRIInverse!(double)(), new Control!(double)(10), 
-        totalCPUs, false);
+        new AMSGrad!(double)(5E-3, 0.8, 0.999, 1E-6, p),
+        new GETRIInverse!(double)(), new Control!(double)(50), 
+        totalCPUs, /* calculate covariance */ true,
+        /* step control */ true);
   writeln("AMSGrad Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 

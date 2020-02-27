@@ -32,10 +32,23 @@ write2DArray(dataFolder %+% "energyY.bin", energyY, 8)
 write2DBlock(dataFolder %+% "energyBlockX", matrixToBlock(energyX, 1000))
 write2DBlock(dataFolder %+% "energyBlockY", matrixToBlock(energyY, 1000))
 
+# Function to scale non zero variables to (0,1] scale
+nonZeroScale = function(x)
+{
+  return(x/max(x))
+}
+
+
 # Scaled X Matrix
 scaledMatrix = cbind(energyX[,1], scale(energyX[,-1]))
 write2DArray(dataFolder %+% "energyScaledX.bin", scaledMatrix, 8)
 write2DBlock(dataFolder %+% "energyScaledBlockX", matrixToBlock(scaledMatrix, 1000))
+
+scaledY = matrix(nonZeroScale(energyY[,1]))
+write2DArray(dataFolder %+% "energyScaledY.bin", scaledY, 8)
+write2DBlock(dataFolder %+% "energyScaledBlockY", matrixToBlock(scaledY, 1000))
+
+
 
 # Motor insurance data
 insuranceX = model.matrix(~ Kilometres + Zone + Bonus + Make + Insured, data = faraway::motorins)
@@ -53,10 +66,14 @@ write2DArray(dataFolder %+% "insuranceY.bin", insuranceY, 8)
 write2DBlock(dataFolder %+% "insuranceBlockX", matrixToBlock(insuranceX, 20))
 write2DBlock(dataFolder %+% "insuranceBlockY", matrixToBlock(insuranceY, 20))
 
-# Scaled X Matrix
+# Scaled 
 scaledMatrix = cbind(insuranceX[,1], scale(insuranceX[,-1]))
 write2DArray(dataFolder %+% "insuranceScaledX.bin", scaledMatrix, 8)
 write2DBlock(dataFolder %+% "insuranceScaledBlockX", matrixToBlock(scaledMatrix, 20))
+
+scaledY = matrix(nonZeroScale(insuranceY[,1]))
+write2DArray(dataFolder %+% "insuranceYScaledY.bin", scaledY, 8)
+write2DBlock(dataFolder %+% "insuranceYScaledBlockY", matrixToBlock(scaledY, 20))
 
 
 # Credit fraud data
@@ -79,10 +96,20 @@ write2DArray(dataFolder %+% "creditY.bin", creditY, 8)
 write2DBlock(dataFolder %+% "creditBlockX", matrixToBlock(creditX, 200))
 write2DBlock(dataFolder %+% "creditBlockY", matrixToBlock(creditY, 200))
 
+binaryScale = function(x)
+{
+  x[x == 0] = -1
+  return(x)
+}
+
 # Scaled X Matrix
 scaledMatrix = cbind(creditX[,1], scale(creditX[,-1]))
 write2DArray(dataFolder %+% "creditScaledX.bin", scaledMatrix, 8)
 write2DBlock(dataFolder %+% "creditScaledBlockX", matrixToBlock(scaledMatrix, 200))
+
+scaledY = matrix(binaryScale(creditY[,1]))
+write2DArray(dataFolder %+% "creditScaledY.bin", scaledY, 8)
+write2DBlock(dataFolder %+% "creditScaledBlockY", matrixToBlock(scaledY, 200))
 
 # GPA data
 gpaData = fread(paste0(dataFolder, "gpaData.csv"))
@@ -103,6 +130,7 @@ write2DArray(dataFolder %+% "gpaY.bin", gpaY, 8)
 # Scaled X Matrix
 scaledMatrix = cbind(gpaX[,1], scale(gpaX[,-1]))
 write2DArray(dataFolder %+% "gpaScaledX.bin", scaledMatrix, 8)
+
 
 # Write the cars data to file
 Cars = data.table(mtcars)
