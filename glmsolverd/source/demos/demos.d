@@ -553,23 +553,23 @@ void gdNesterovDataDemo()
   writeln("The outputs for all these models should be the same.");
   gammaModel = glm!(double)(new RegularData(), energyX, 
         energyY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Nesterov!(double)(1E-3, 0.9, p), new GETRIInverse!(double)(),
-        new Control!(double)(10), true);
+        new Nesterov!(double)(3E-7, 0.7, p), new GETRIInverse!(double)(),
+        new Control!(double)(10), true, false);
   writeln("Nesterov Gradient Descent With Regular Data\n", gammaModel);
   /***************************************************************/
   /* Gradient Descent Block Model */
   gammaModel = glm!(double)(new Block1D(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Nesterov!(double)(1E-6, 0.9, p), new GETRIInverse!(double)(),
-        new Control!(double)(10), true);
+        new Nesterov!(double)(3E-7, 0.7, p), new GETRIInverse!(double)(),
+        new Control!(double)(10), true, false);
   writeln("Nesterov Gradient Descent With Block Data \n", gammaModel);
   
   /* Gradient Descent Nesterov Block Model */
   gammaModel = glm!(double)(new Block1DParallel(), energyBlockX, 
         energyBlockY, new GammaDistribution!(double)(), new LogLink!(double)(),
-        new Nesterov!(double)(1E-6, 0.9, p),
+        new Nesterov!(double)(3E-7, 0.7, p),
         new GETRIInverse!(double)(), new Control!(double)(10), 
-        totalCPUs, true);
+        totalCPUs, true, false);
   writeln("Nesterov Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 

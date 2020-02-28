@@ -1420,6 +1420,176 @@ interface AbstractGradientSolver(T, CBLAS_LAYOUT layout = CblasColMajor)
 mixin template GradientMixin(T, CBLAS_LAYOUT layout)
 {
   private:
+  
+  auto /* Tuple!(T, ColumnVector!(T)) */ pgradient_(AbstractDistribution!T distrib, AbstractLink!T link,
+      ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu, 
+      ColumnVector!T eta)
+  {
+    ulong p = x.ncol;
+    ulong ni = x.nrow;
+    auto grad = zerosColumn!T(p);
+    auto tmp = zerosColumn!(T)(ni);
+    T numer = 0;
+    T X2 = 0;
+    for(ulong i = 0; i < ni; ++i)
+    {
+      numer = y[i] - mu[i];
+      X2 += (numer^^2)/distrib.variance(mu[i]);
+      tmp[i] = numer/(link.deta_dmu(mu[i], eta[i]) * distrib.variance(mu[i]));
+      for(ulong j = 0; j < p; ++j)
+      {
+        grad[j] += tmp[i] * x[i, j];
+      }
+    }
+    return tuple!("X2", "grad")(X2, grad);
+  }
+
+  public:
+  /* Gradients */
+  /* Returns the average gradient calculated using (n - p) */
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link,
+              ColumnVector!T y, Matrix!(T, layout) x, ColumnVector!T mu,
+              ColumnVector!T eta)
+  {
+    ulong p = x.ncol; ulong n = x.nrow;
+    auto grad = pgradient_(distrib, link, y, x, mu, eta);
+    auto df = cast(T)(n - p);
+    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    T phi = grad.X2/df;
+    return grad.grad/phi;
+  }
+  ColumnVector!(T) pgradient(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) y, BlockMatrix!(T, layout) x,
+              BlockColumnVector!(T) mu, BlockColumnVector!T eta)
+  {
+    ulong nBlocks = y.length; ulong n = 0;
+    ulong p = x[0].ncol;
+    auto grad = zerosColumn!T(p);
+    T X2 = 0;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      n += y[i].length;
+      auto tmp = pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
+      grad += tmp.grad;
+      X2 += tmp.X2;
+    }
+    auto df = cast(T)(n - p);
+    T phi = X2/df;
+    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    return grad/phi;
+  }
+  ColumnVector!(T) pgradient(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) y, 
+              BlockMatrix!(T, layout) x, BlockColumnVector!(T) mu,
+              BlockColumnVector!T eta)
+  {
+    ulong nBlocks = y.length;
+    ulong p = x[0].ncol;
+
+    auto nStore = taskPool.workerLocalStorage(cast(ulong)0);
+    auto gradStore = taskPool.workerLocalStorage(zerosColumn!T(p));
+    auto X2Store = taskPool.workerLocalStorage(cast(T)0);
+    T X2 = 0;
+
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      nStore.get += y[i].length;
+      auto tmp = pgradient_(distrib, link, y[i], x[i], mu[i], eta[i]);
+      gradStore.get += tmp.grad;
+      X2Store.get += tmp.X2;
+    }
+
+    ulong n = 0;
+    auto grad = zerosColumn!T(p);
+    foreach(_n; nStore.toRange)
+      n += _n;
+    foreach(_grad; gradStore.toRange)
+      grad += _grad;
+    foreach(_X2; X2Store.toRange)
+      X2 += _X2;
+    
+    auto df = cast(T)(n - p);
+    T phi = X2/df;
+    
+    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    return grad/phi;
+  }
+  /* Weights */
+  T W(AbstractDistribution!T distrib, AbstractLink!T link, T mu, T eta)
+  {
+    return ((link.deta_dmu(mu, eta)^^2) * distrib.variance(mu))^^(-1);
+  }
+  ColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+            ColumnVector!T mu, ColumnVector!T eta)
+  {
+    return map!( (T m, T x) => W(distrib, link, m, x) )(mu, eta);
+  }
+  BlockColumnVector!(T) W(AbstractDistribution!T distrib, AbstractLink!T link, 
+              BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong n = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[n];
+    for(ulong i = 0; i < n; ++i)
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
+  BlockColumnVector!(T) W(Block1DParallel dataType, AbstractDistribution!T distrib,
+              AbstractLink!T link, BlockColumnVector!(T) mu, BlockColumnVector!(T) eta)
+  {
+    ulong nBlocks = mu.length;
+    BlockColumnVector!(T) ret = new ColumnVector!(T)[nBlocks];
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+      ret[i] = W(distrib, link, mu[i], eta[i]);
+    return ret;
+  }
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref Matrix!(T, layout) xw, ref Matrix!(T, layout) x,
+              ref ColumnVector!(T) z, ref ColumnVector!(T) w)
+  {
+    xw = sweep!( (x1, x2) => x1 * x2 )(x, w);
+    xwx = mult_!(T, layout, CblasTrans, CblasNoTrans)(xw, x);
+  }
+  void XWX(ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  {
+    ulong p = x[0].ncol;
+    xwx = zerosMatrix!(T, layout)(p, p);
+    ulong nBlocks = x.length;
+    for(ulong i = 0; i < nBlocks; ++i)
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      xwx += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+    }
+  }
+  void XWX(Block1DParallel dataType, ref Matrix!(T, layout) xwx, 
+              ref BlockMatrix!(T, layout) xw, ref BlockMatrix!(T, layout) x,
+              ref BlockColumnVector!(T) z, ref BlockColumnVector!(T) w)
+  {
+    ulong p = x[0].ncol;
+
+    xwx = zerosMatrix!(T, layout)(p, p);
+    auto XWX = taskPool.workerLocalStorage(zerosMatrix!(T, layout)(p, p));
+
+    ulong nBlocks = x.length;
+    foreach(i; taskPool.parallel(iota(nBlocks)))
+    {
+      auto tmp = sweep!( (x1, x2) => x1 * x2 )(x[i], w[i]);
+      XWX.get += mult_!(T, layout, CblasTrans, CblasNoTrans)(tmp , x[i]);
+    }
+    foreach (_xwx; XWX.toRange)
+      xwx += _xwx;
+  }
+  Matrix!(T, layout) cov(AbstractInverse!(T, layout) inverse, Matrix!(T, layout) xwx)
+  {
+    return inverse.inv(xwx);
+  }
+}
+
+
+mixin template GradientMixin0(T, CBLAS_LAYOUT layout)
+{
+  private:
   /*
     This is not the gradient, it doesn't include phi, which I omit because
     it should be a constant. Might add the actual gradient function later
