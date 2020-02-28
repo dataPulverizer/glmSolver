@@ -580,6 +580,177 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Arr
              dev, residuals)
 end
 
+#============================== GRADIENT DESCENT ==============================#
+#==============================================================================#
+
+#============================== REGULAR DATA ==============================#
+function glm(::RegularData, x::Array{T, 2}, y::Array{T},
+              distrib::AbstractDistribution, link::AbstractLink;
+              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(), 
+              inverse::AbstractInverse = GETRIInverse(), 
+              control::Control{T} = Control{T}(), 
+              calculateCovariance::Bool = true, 
+              doStepControl::Bool = true, 
+              offset::Array{T, 1} = Array{T, 1}(undef, 0), 
+              weights = Array{T, 1}(undef, 0)) where {T <: AbstractFloat}
+  
+  # TODO: Implement init for Gradient Descent
+  y, mu, weights = init!(distrib, y, weights)
+  
+  coef = zeros(T, size(x)[2])
+  coefold = zeros(T, size(x)[2])
+
+  eta = x * coef
+  doOffset = false
+
+  if doOffset
+    eta .+= offset
+  end
+  mu = linkinv(link, eta)
+
+  absErr::T = T(Inf)
+  relErr::T = T(Inf)
+
+  residuals::Array{T, 1} = zeros(T, size(y))
+  dev::T = T(Inf)
+  devold::T = T(Inf)
+
+  iter::Int64 = 1
+
+  n, p = size(x)
+  converged::Bool = false
+  badBreak::Bool = false
+
+  if length(offset) != 0
+    doOffset = true
+  end
+  doWeights = false
+  if length(weights) != 0
+    doWeights = true
+  end
+
+  vcov::Array{T, 2} = fill(T(1), (p, p))
+  xwx::Array{T, 2} = zeros(T, (p, p))
+  w::Array{T, 1} = zeros(T, (0,))
+
+  while (relErr > control.epsilon)
+  
+    if control.printError
+      println("Iteration: $iter")
+    end
+    
+    w = W(solver, distrib, link, mu, eta)
+
+    if doWeights
+      w .*= weights
+    end
+
+    coef = solve!(solver, distrib, link, y, x, mu, eta, coef)
+    
+    if(control.printCoef)
+      println(coef)
+    end
+
+    eta = x * coef
+    if doOffset
+      eta .+= offset
+    end
+    mu = linkinv(link, eta)
+    
+    if length(weights) == 0
+      residuals = devianceResiduals(distrib, mu, y)
+    else
+      residuals = devianceResiduals(distrib, mu, y, weights)
+    end
+
+    dev = sum(residuals)
+
+    absErr = absoluteError(dev, devold)
+    relErr = relativeError(dev, devold)
+
+    frac::T = T(1)
+    coefdiff = coef .- coefold
+    # Step control
+    while (doStepControl && (dev > (devold + control.epsilon*dev)))
+      
+      if control.printError
+        println("\tStep control")
+        println("\tFraction: $frac")
+        println("\tDeviance: $dev")
+        println("\tAbsolute Error: $absErr")
+        println("\tRelative Error: $relErr")
+      end
+
+      frac *= 0.5
+      coef = coefold .+ (coefdiff .* frac)
+
+      if(control.printCoef)
+        println(coef)
+      end
+
+      # Abstract this block away into a function so 
+      # that it doesn't need to be repeated
+      eta = x * coef
+      if doOffset
+        eta .+= offset
+      end
+      mu = linkinv(link, eta)
+
+      if length(weights) == 0
+        residuals = devianceResiduals(distrib, mu, y)
+      else
+        residuals = devianceResiduals(distrib, mu, y, weights)
+      end
+
+      dev = sum(residuals)
+      
+      absErr = absoluteError(dev, devold)
+      relErr = relativeError(dev, devold)
+
+      if frac < control.minstep
+        error("Step control exceeded.")
+      end
+    end
+    
+    devold = dev
+    coefold = coef
+
+    if control.printError
+      println("Deviance: $dev")
+      println("Absolute Error: $absErr")
+      println("Relative Error: $relErr")
+    end
+
+    if iter >= control.maxit
+      println("Maximum number of iterations " * 
+                string(control.maxit) * " has been reached.")
+      badBreak = true
+      break
+    end
+
+    iter += 1
+
+  end
+
+  if badBreak
+    converged = false
+  else
+    converged = true
+  end
+  
+  phi::T = T(1)
+  if calculateCovariance
+    xwx = XWX(x, w)
+    vcov = cov(solver, inverse, xwx)
+    if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
+      phi = dev/(n - p)
+      vcov .*= phi
+    end
+  end
+
+  return GLM(link, distrib, phi, coef, vcov, iter, relErr, absErr, converged, 
+             dev, residuals)
+end
 
 
 

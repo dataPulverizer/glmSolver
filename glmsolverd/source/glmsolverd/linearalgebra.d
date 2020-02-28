@@ -1454,7 +1454,7 @@ mixin template GradientMixin(T, CBLAS_LAYOUT layout)
     ulong p = x.ncol; ulong n = x.nrow;
     auto grad = pgradient_(distrib, link, y, x, mu, eta);
     auto df = cast(T)(n - p);
-    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    assert(df > 0, "Number of items n is not greater than the number of parameters p.");
     T phi = grad.X2/df;
     return grad.grad/phi;
   }
@@ -1475,7 +1475,7 @@ mixin template GradientMixin(T, CBLAS_LAYOUT layout)
     }
     auto df = cast(T)(n - p);
     T phi = X2/df;
-    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    assert(df > 0, "Number of items n is not greater than the number of parameters p.");
     return grad/phi;
   }
   ColumnVector!(T) pgradient(Block1DParallel dataType, AbstractDistribution!T distrib,
@@ -1511,7 +1511,7 @@ mixin template GradientMixin(T, CBLAS_LAYOUT layout)
     auto df = cast(T)(n - p);
     T phi = X2/df;
     
-    assert(df >= 0, "Number of items n is not greater than the number of parameters p.");
+    assert(df > 0, "Number of items n is not greater than the number of parameters p.");
     return grad/phi;
   }
   /* Weights */

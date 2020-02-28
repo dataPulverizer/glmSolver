@@ -1,5 +1,5 @@
 #=
-  Testing for glm.jl
+  Demos for various glm functions
 =#
 path = "/home/chib/code/glmSolver/"
 
