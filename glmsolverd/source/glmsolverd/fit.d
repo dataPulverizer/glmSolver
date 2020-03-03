@@ -546,7 +546,7 @@ auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         ColumnVector!T weights = zerosColumn!T(0))
 if(isFloatingPoint!T)
 {
-  auto init = distrib.init(_y, weights);
+  auto init = distrib.init(solver, _y, weights);
   auto y = init[0]; weights = init[1];
 
   ulong iter = 1;

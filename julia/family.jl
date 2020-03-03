@@ -20,6 +20,23 @@ struct PowerDistribution{T <: AbstractFloat} <: AbstractDistribution
 end
 # struct LogNormalDistribution <: AbstractDistribution end
 
+#====================================================================
+  Copy constructors for distribution types
+====================================================================#
+import Base.copy
+copy(::BernoulliDistribution) = BernoulliDistribution()
+copy(::BinomialDistribution) = BinomialDistribution()
+copy(::GammaDistribution) = GammaDistribution()
+copy(::PoissonDistribution) = PoissonDistribution()
+copy(::GaussianDistribution) = GaussianDistribution()
+copy(::InverseGaussianDistribution) = InverseGaussianDistribution()
+function copy(distrib::NegativeBernoulliDistribution{T}) where {T}
+  return NegativeBernoulliDistribution(distrib.Alpha)
+end
+function copy(distrib::PowerDistribution{T}) where {T}
+  return PowerDistribution(distrib.k)
+end
+#===================================================================#
 
 # Type returned from init!() function
 InitType{T} = Tuple{Array{T, 1}, Array{T, 1}, Array{T, 1}} # where {T <: AbstractFloat}

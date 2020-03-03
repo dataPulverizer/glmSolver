@@ -622,24 +622,34 @@ function gradient(::Block1DParallel, distrib::AbstractDistribution, link::Abstra
   X2Store = [T(0) for i in 1:nthreads()]
   gradStore = [zeros(T, p) for i in 1:nthreads()]
   
+  distribStore = [copy(distrib) for i in 1:nthreads()]
+  linkStore = [copy(link) for i in 1:nthreads()]
+  
   @threads for i in 1:nBlocks
-    tmp = _gradient(distrib, link, y[i], x[i], mu[i], eta[i])
+    tmp = _gradient(distribStore[threadid()], linkStore[threadid()], y[i], x[i], mu[i], eta[i])
     gradStore[threadid()] .+= tmp.grad
     X2Store[threadid()] += tmp.X2
     nStore[threadid()] += length(y[i])
   end
   
-  for i in 2:nthreads()
-    nStore[1] += nStore[i]
-    gradStore[1] .+= gradStore[i]
-    X2Store[1] += X2Store[i]
+  n = Int64(0); grad = zeros(T, p), X2 = T(0)
+  for i in 1:nthreads()
+    # nStore[1] += nStore[i]
+    # gradStore[1] .+= gradStore[i]
+    # X2Store[1] += X2Store[i]
+    n += nStore[i]
+    grad .+= gradStore[i]
+    X2 += X2Store[i]
   end
   
-  df = nStore[1] - p
-  phi::T = X2Store[1]/df
+  # df = nStore[1] - p
+  # phi::T = X2Store[1]/df
+  df = n - p
+  phi::T = X2/df
   @assert(df > 0, "Number of items not greater than number of parameters")
   
-  return gradStore[1]./phi
+  # return gradStore[1]./phi
+  return grad ./phi
 end
 
 #==============================  Simple Gradient Descent Solver ==============================#
@@ -649,6 +659,10 @@ struct GradientDescentSolver{T} <: AbstractGradientDescentSolver
   function GradientDescentSolver(learningRate::T = T(1E-6)) where {T <: AbstractFloat}
     return new{T}(learningRate)
   end
+end
+#= Copy constructor =#
+function copy(solver::GradientDescentSolver{T}) where {T}
+  return GradientDescentSolver(solver.learningRate)
 end
 
 function solve!(solver::GradientDescentSolver, distrib::AbstractDistribution, 
@@ -678,3 +692,134 @@ function solve!(::Block1DParallel, solver::GradientDescentSolver,
   coef .+= solver.learningRate .* grad;
   return coef
 end
+
+#==============================  GRADIENT DESCENT INITIALIZERS ==============================#
+
+# init type return.
+InitDouble{T} = Tuple{Array{T, 1}, Array{T, 1}} # where {T <: AbstractFloat}
+
+# Initializer for gradient descent solvers
+function init!(::AbstractGradientDescentSolver, 
+               ::AbstractDistribution, y::Array{T}, 
+               wts::Array{T, 1}) #= ::InitDouble{T} =# where {T <: AbstractFloat}
+  y = y[:, 1]
+  return y, wts
+end
+
+function init!(::AbstractGradientDescentSolver,
+               ::AbstractDistribution, y::Array{Array{T, 2}, 1}, 
+               wts::Array{Array{T, 1}, 1}) #= ::InitDouble{Array{T, 1}}=# where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  if length(size(y[1])) == 2
+    y = [y[i][:, 1] for i in 1:nBlocks]
+  end
+  return y, wts;
+end
+
+function init!(::AbstractGradientDescentSolver, 
+               ::Block1DParallel, ::AbstractDistribution, 
+               y::Array{Array{T, 2}, 1}, 
+               wts::Array{Array{T, 1}, 1}) #=::InitDouble{Array{T, 1}} =# where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  isMat::Bool = length(size(y[1])) == 2
+  yNew = Array{Array{T, 1}, 1}(undef, nBlocks);
+  @threads for i in 1:nBlocks
+    yNew[i] = isMat ? y[i][:, 1] : y[i]
+  end
+  return yNew, wts;
+end
+
+#===================== BinomialDistribution Initializers ====================#
+function init!(::AbstractGradientDescentSolver, 
+      ::BinomialDistribution, y::Array{T}, 
+      wts::Array{T, 1}) #= ::InitDouble{T}=# where {T <: AbstractFloat}
+  if size(y)[2] == 1
+    y = y[:, 1]
+  elseif size(y)[2] == 2
+    n = size(y)[1]
+    events = y[:, 1]
+    N = events .+ y[:, 2]
+    y = [if N[i] != 0; events[i]/N[i]; else T(0) end for i in 1:n]
+    if length(wts) != 0
+      wts .*= N
+    else
+      wts = N
+    end
+  else
+    error("There was a problem")
+  end
+  return y, wts
+end
+
+function init!(::AbstractGradientDescentSolver, 
+               ::BinomialDistribution, y::Array{Array{T, 2}, 1}, 
+               wts::Array{Array{T, 1}, 1}) #= ::InitDouble{Array{T, 1}} =# where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  if size(y[1])[2] == 1
+    y = [y[i][:, 1] for i in 1:nBlocks]
+  elseif size(y[1])[2] == 2
+    events = [y[i][:, 1] for i in 1:nBlocks]
+    N = [events[i] .+ y[i][:, 2] for i in 1:nBlocks]
+    yNew = Array{Array{T, 1}, 1}(undef, nBlocks)
+    for i in 1:nBlocks
+      n = size(y[i])[1]
+      tmp = zeros(T, n)
+      for j in 1:n
+        tmp[j] = if N[i][j] != 0; events[i][j]/N[i][j]; else T(0) end
+      end
+      yNew[i] = tmp
+    end
+    y = yNew
+    if length(wts) != 0
+      [wts[i] .*= N[i] for i in 1:nBlocks]
+    else
+      wts = N
+    end
+  else
+    error("There was a problem with the dimensions of y")
+  end
+  return y, wts
+end
+
+function init!(::AbstractGradientDescentSolver,
+          ::Block1DParallel, ::BinomialDistribution, 
+          y::Array{Array{T, 2}, 1}, 
+          wts::Array{Array{T, 1}, 1}) #= ::InitDouble{Array{T, 1}} =# where {T <: AbstractFloat}
+  nBlocks::Int64 = length(y)
+  yNew = Array{Array{T, 1}, 1}(undef, nBlocks)
+  events = Array{Array{T, 1}, 1}(undef, nBlocks)
+  N = Array{Array{T, 1}, 1}(undef, nBlocks)
+  if size(y[1])[2] == 1
+    @threads for i in 1:nBlocks
+      yNew[i] = y[i][:, 1]
+    end
+    y = yNew
+  elseif size(y[1])[2] == 2
+    @threads for i in 1:nBlocks
+      events[i] = y[i][:, 1]
+    end
+    @threads for i in 1:nBlocks
+      N[i] = events[i] .+ y[i][:, 2]
+    end
+    @threads for i in 1:nBlocks
+      n = size(y[i])[1]
+      tmp = zeros(T, n)
+      for j in 1:n
+        tmp[j] = if N[i][j] != 0; events[i][j]/N[i][j]; else T(0) end
+      end
+      yNew[i] = tmp
+    end
+    y = yNew
+    if length(wts) != 0
+      @threads for i in 1:nBlocks
+        wts[i] = wts[i] .* N[i]
+      end
+    else
+      wts = N
+    end
+  else
+    error("There was a problem with the dimensions of y")
+  end
+  return y, wts
+end
+

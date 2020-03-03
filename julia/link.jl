@@ -48,6 +48,30 @@ struct PowerLink{T <: AbstractFloat} <: AbstractLink
   Alpha::T
 end
 
+#====================================================================
+  Copy constructors for link types
+====================================================================#
+import Base.copy
+copy(::IdentityLink) = IdentityLink()
+copy(::LogLink) = LogLink()
+copy(::InverseLink) = InverseLink()
+function copy(distrib::NegativeBinomialLink{T}) where {T}
+  return NegativeBinomialLink(distrib.Alpha)
+end
+copy(::LogitLink) = LogitLink()
+copy(::ProbitLink) = ProbitLink()
+copy(::CauchitLink) = CauchitLink()
+function copy(distrib::OddsPowerLink{T}) where {T}
+  return OddsPowerLink(distrib.Alpha)
+end
+copy(::LogComplimentLink) = LogComplimentLink()
+copy(::LogLogLink) = LogLogLink()
+copy(::ComplementaryLogLogLink) = ComplementaryLogLogLink()
+function copy(distrib::PowerLink{T}) where {T}
+  return PowerLink(distrib.Alpha)
+end
+#===================================================================#
+
 
 #=
   Implementation of the groups of link functions
