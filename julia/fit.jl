@@ -2,8 +2,8 @@
   Module To Fit GLM
 =#
 
-function glm(::RegularData, x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink; 
-              solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
+function glm(::RegularData, x::Array{T, 2}, y::Array{T}, distrib::AbstractDistribution, link::AbstractLink, 
+              solver::AbstractSolver; inverse::AbstractInverse = GETRIInverse(),
               offset::Array{T, 1} = Array{T, 1}(undef, 0), 
               weights = Array{T, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
@@ -187,8 +187,8 @@ end
 #=
   Valid only for solvers: GESVSolver, POSVSolver, SYSVSolver
 =#
-function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, link::AbstractLink; 
-              solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
+function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, link::AbstractLink, 
+              solver::AbstractSolver; inverse::AbstractInverse = GETRIInverse(),
               offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
               weights = Array{Array{T, 1}, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
@@ -379,8 +379,8 @@ end
 #=
   Valid only for solvers: GESVSolver, POSVSolver, SYSVSolver
 =#
-function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, link::AbstractLink; 
-              solver::AbstractSolver = GESVSolver(), inverse::AbstractInverse = GETRIInverse(),
+function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, link::AbstractLink, 
+              solver::AbstractSolver; inverse::AbstractInverse = GETRIInverse(),
               offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
               weights = Array{Array{T, 1}, 1}(undef, 0), control::Control{T} = Control{T}()) where {T <: AbstractFloat}
   
@@ -585,8 +585,8 @@ end
 
 #============================== REGULAR DATA ==============================#
 function glm(::RegularData, x::Array{T, 2}, y::Array{T},
-              distrib::AbstractDistribution, link::AbstractLink;
-              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(), 
+              distrib::AbstractDistribution, link::AbstractLink,
+              solver::AbstractGradientDescentSolver; 
               inverse::AbstractInverse = GETRIInverse(), 
               control::Control{T} = Control{T}(), 
               calculateCovariance::Bool = true, 
@@ -756,8 +756,8 @@ end
 #============================== BLOCK DATA GRADIENT DESCENT ==============================#
 
 function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, 
-              distrib::AbstractDistribution, link::AbstractLink; 
-              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(), 
+              distrib::AbstractDistribution, link::AbstractLink, 
+              solver::AbstractGradientDescentSolver; 
               inverse::AbstractInverse = GETRIInverse(),
               control::Control{T} = Control{T}(), 
               calculateCovariance::Bool = true, 
@@ -948,8 +948,7 @@ end
 =#
 function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, 
               y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, 
-              link::AbstractLink; 
-              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(),
+              link::AbstractLink, solver::AbstractGradientDescentSolver; 
               inverse::AbstractInverse = GETRIInverse(), 
               control::Control{T} = Control{T}(), 
               calculateCovariance::Bool = true, 

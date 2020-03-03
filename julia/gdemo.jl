@@ -8,7 +8,7 @@ using .GLMSolver
 
 using DelimitedFiles: readdlm, writedlm
 
-function gdNesterovDataDemo()
+function gdDataDemo()
 
   path = "/home/chib/code/glmSolver/data/";
 
@@ -23,13 +23,13 @@ function gdNesterovDataDemo()
 
   gammaModel = glm(Block1DParallel(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        solver = GESVSolver(), inverse = GETRIInverse())
-  # println("Full GLM Solve\n", gammaModel)
+        #= solver =# GESVSolver(), inverse = GETRIInverse())
+  println("Full GLM Solve\n", gammaModel.coefficients)
 
   println("The outputs for all these models should be the same.");
   gammaModel = glm(RegularData(), energyX, 
         energyY, GammaDistribution(), LogLink(),
-        solver = GradientDescentSolver(1E-6), inverse = GETRIInverse(),
+        #= solver =# GradientDescentSolver(1E-6), inverse = GETRIInverse(),
         control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
@@ -38,7 +38,7 @@ function gdNesterovDataDemo()
   #= Gradient Descent Block Model =#
   gammaModel = glm(Block1D(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        solver = GradientDescentSolver(1E-6), 
+        #= solver =# GradientDescentSolver(1E-6), 
         inverse = GETRIInverse(), control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
@@ -47,7 +47,7 @@ function gdNesterovDataDemo()
   #= Gradient Descent Nesterov Block Model =#
   gammaModel = glm(Block1DParallel(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        solver = GradientDescentSolver(1E-6),
+        #= solver =# GradientDescentSolver(1E-6),
         inverse = GETRIInverse(), control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
