@@ -24,7 +24,7 @@ function gdNesterovDataDemo()
   gammaModel = glm(Block1DParallel(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
         solver = GESVSolver(), inverse = GETRIInverse())
-  println("Full GLM Solve\n", gammaModel)
+  # println("Full GLM Solve\n", gammaModel)
 
   println("The outputs for all these models should be the same.");
   gammaModel = glm(RegularData(), energyX, 
@@ -33,16 +33,16 @@ function gdNesterovDataDemo()
         control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
-  println("Gradient Descent With Regular Data\n", gammaModel)
+  println("Gradient Descent With Regular Data\n", gammaModel.coefficients)
   #===================================================================#
   #= Gradient Descent Block Model =#
   gammaModel = glm(Block1D(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        solver = GradientDescentSolver(1E-6), inverse = GETRIInverse(),
-        control = Control{Float64}(maxit = 50), 
+        solver = GradientDescentSolver(1E-6), 
+        inverse = GETRIInverse(), control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
-  println("Gradient Descent With Block Data \n", gammaModel)
+  println("Gradient Descent With Block Data \n", gammaModel.coefficients)
   
   #= Gradient Descent Nesterov Block Model =#
   gammaModel = glm(Block1DParallel(), energyBlockX, 
@@ -51,7 +51,7 @@ function gdNesterovDataDemo()
         inverse = GETRIInverse(), control = Control{Float64}(maxit = 50), 
         calculateCovariance = true, 
         doStepControl = false)
-  println("Gradient Descent With Parallel Block Data \n", gammaModel)
+ println("Gradient Descent With Parallel Block Data \n", gammaModel.coefficients)
   
   return
 end

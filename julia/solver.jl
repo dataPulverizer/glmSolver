@@ -592,12 +592,14 @@ function gradient(distrib::AbstractDistribution, link::AbstractLink,
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   
   nBlocks::Int64 = length(y); n::Int64 = T(0)
-  p::Int64 = size(x[1])[1]; grad::Array{T, 1} = zeros(T, p)
+  p::Int64 = size(x[1])[2]; grad::Array{T, 1} = zeros(T, p)
   X2::T = T(0)
 
   for i in 1:nBlocks
     n += length(y[i])
     tmp = _gradient(distrib, link, y[i], x[i], mu[i], eta[i])
+    # println("size(grad): ", size(grad))
+    # println("size(tmp.grad): ", size(tmp.grad))
     grad .+= tmp.grad
     X2 += tmp.X2
   end
@@ -613,7 +615,7 @@ function gradient(::Block1DParallel, distrib::AbstractDistribution, link::Abstra
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   
-  nBlocks::Int64 = length(y); p::Int64 = size(x[1])[1]; n::Int64 = T(0);
+  nBlocks::Int64 = length(y); p::Int64 = size(x[1])[2]; n::Int64 = T(0);
   # grad::Array{T, 1} = zeros(T, p); X2::T = T(0)
   
   nStore = [Int64(0) for i in 1:nthreads()]
@@ -667,7 +669,8 @@ function solve!(solver::GradientDescentSolver, distrib::AbstractDistribution,
   return coef
 end
 
-function solve!(solver::GradientDescentSolver, ::Block1DParallel, distrib::AbstractDistribution, link::AbstractLink, 
+function solve!(::Block1DParallel, solver::GradientDescentSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   

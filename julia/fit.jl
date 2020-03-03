@@ -602,6 +602,9 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
 
   eta = x * coef
   doOffset = false
+  if length(offset) != 0
+    doOffset = true
+  end
 
   if doOffset
     eta .+= offset
@@ -621,9 +624,6 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
   converged::Bool = false
   badBreak::Bool = false
 
-  if length(offset) != 0
-    doOffset = true
-  end
   doWeights = false
   if length(weights) != 0
     doWeights = true
@@ -646,6 +646,7 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
     end
 
     coef = solve!(solver, distrib, link, y, x, mu, eta, coef)
+    # println("Coef gradient descent regular data: ", coef, "\n")
     
     if(control.printCoef)
       println(coef)
@@ -752,6 +753,402 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
              dev, residuals)
 end
 
+#============================== BLOCK DATA GRADIENT DESCENT ==============================#
+
+function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1}, 
+              distrib::AbstractDistribution, link::AbstractLink; 
+              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(), 
+              inverse::AbstractInverse = GETRIInverse(),
+              control::Control{T} = Control{T}(), 
+              calculateCovariance::Bool = true, 
+              doStepControl::Bool = true, 
+              offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
+              weights = Array{Array{T, 1}, 1}(undef, 0)) where {T <: AbstractFloat}
+  
+  # TODO: Implement init for Gradient Descent
+  y, mu, weights = init!(distrib, y, weights)
+
+  coef = zeros(T, size(x[1])[2])
+  coefold = zeros(T, size(x[1])[2])
+
+  nBlocks::Int64 = length(mu)
+  eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
+  doOffset = false
+  if length(offset) != 0
+    doOffset = true
+  end
+
+  if doOffset
+    for i in 1:nBlocks
+      eta[i] .+= offset[i]
+    end
+  end
+  mu = linkinv(link, eta)
+
+  absErr::T = T(Inf)
+  relErr::T = T(Inf)
+
+  residuals::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0)
+  dev::T = T(Inf)
+  devold::T = T(Inf)
+
+  iter::Int64 = 1
+
+  n = sum(map((y) -> size(y)[1], x))
+  p = size(x[1])[2]
+  converged::Bool = false
+  badBreak::Bool = false
+
+  doWeights = false
+  if length(weights) != 0
+    doWeights = true
+  end
+
+  vcov::Array{T, 2} = fill(T(1), (p, p))
+  xwx::Array{T, 2} = zeros(T, (p, p))
+  w::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0)
+
+  while (relErr > control.epsilon)
+    
+    if control.printError
+      println("Iteration: $iter")
+    end
+    
+    w = W(solver, distrib, link, mu, eta)
+    if doWeights
+      for i in 1:nBlocks
+        w[i] .*= weights[i]
+      end
+    end
+
+    coef = solve!(solver, distrib, link, y, x, mu, eta, coef)
+    coef = reshape(coef, (p,))
+    
+    if(control.printCoef)
+      println(coef)
+    end
+
+    eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
+    if doOffset
+      for i in 1:nBlocks
+        eta[i] .+= offset[i]
+      end
+    end
+    mu = linkinv(link, eta)
+    
+    if length(weights) == 0
+      residuals = devianceResiduals(distrib, mu, y)
+    else
+      residuals = devianceResiduals(distrib, mu, y, weights)
+    end
+
+    dev = T(0)
+    for i in 1:nBlocks
+      dev += sum(residuals[i])
+    end
+
+    absErr = absoluteError(dev, devold)
+    relErr = relativeError(dev, devold)
+    # absErr = absoluteError(coef, coefold)
+    # relErr = relativeError(coef, coefold)
+
+    frac::T = T(1)
+    coefdiff = coef .- coefold
+    # Step control
+    while (doStepControl && (dev > (devold + control.epsilon*dev)))
+      
+      if control.printError
+        println("\tStep control")
+        println("\tFraction: $frac")
+        println("\tDeviance: $dev")
+        println("\tAbsolute Error: $absErr")
+        println("\tRelative Error: $relErr")
+      end
+
+      frac *= 0.5
+      coef = coefold .+ (coefdiff .* frac)
+
+      if(control.printCoef)
+        println(coef)
+      end
+
+      # Abstract this block away into a function so 
+      # that it doesn't need to be repeated
+      eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
+      if doOffset
+        for i in 1:nBlocks
+          eta[i] .+= offset[i]
+        end
+      end
+      mu = linkinv(link, eta)
+
+      if length(weights) == 0
+        residuals = devianceResiduals(distrib, mu, y)
+      else
+        residuals = devianceResiduals(distrib, mu, y, weights)
+      end
+
+      dev = T(0)
+      for i in 1:nBlocks
+        dev += sum(residuals[i])
+      end
+      
+      absErr = absoluteError(dev, devold)
+      relErr = relativeError(dev, devold)
+
+      if frac < control.minstep
+        error("Step control exceeded.")
+      end
+    end
+
+    devold = dev
+    coefold = coef
+
+    if control.printError
+      # println("Iteration: $iter")
+      println("Deviance: $dev")
+      println("Absolute Error: $absErr")
+      println("Relative Error: $relErr")
+    end
+
+    if iter >= control.maxit
+      println("Maximum number of iterations " * 
+                string(control.maxit) * " has been reached.")
+      badBreak = true
+      break
+    end
+
+    iter += 1
+
+  end
+
+  if badBreak
+    converged = false
+  else
+    converged = true
+  end
+
+  phi::T = T(1)
+  if calculateCovariance
+    xwx = XWX(x, w)
+    vcov = cov(solver, inverse, xwx)
+    if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
+      phi = dev/(n - p)
+      vcov .*= phi
+    end
+  end
+
+  return GLMBlock1D(link, distrib, phi, coef, vcov, iter, relErr, absErr, converged, 
+             dev, residuals)
+end
+
+#============================== BLOCK PARALLEL GRADIENT DESCENT ==============================#
+#=
+  Valid only for solvers: GESVSolver, POSVSolver, SYSVSolver
+=#
+function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1}, 
+              y::Array{Array{T, 2}, 1}, distrib::AbstractDistribution, 
+              link::AbstractLink; 
+              solver::AbstractGradientDescentSolver = GradientDescentSolver{T}(),
+              inverse::AbstractInverse = GETRIInverse(), 
+              control::Control{T} = Control{T}(), 
+              calculateCovariance::Bool = true, 
+              doStepControl::Bool = true, 
+              offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
+              weights = Array{Array{T, 1}, 1}(undef, 0)) where {T <: AbstractFloat}
+  
+  #= Set BLAS threads =#
+  set_num_threads(1)
+  y, mu, weights = init!(matrixType, distrib, y, weights)
+
+  coef = zeros(T, size(x[1])[2])
+  coefold = zeros(T, size(x[1])[2])
+
+  nBlocks::Int64 = length(mu)
+  eta::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    eta[i] = (x[i] * coef)[:, 1]
+  end
+
+  doOffset = false
+  if length(offset) != 0
+    doOffset = true
+  end
+  if doOffset
+    @threads for i in 1:nBlocks
+      eta[i] .+= offset[i]
+    end
+  end
+  mu = linkinv(matrixType, link, eta)
 
 
+  absErr::T = T(Inf)
+  relErr::T = T(Inf)
+
+  residuals::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0)
+  dev::T = T(Inf)
+  devold::T = T(Inf)
+
+  iter::Int64 = 1
+
+  n = sum(map((y) -> size(y)[1], x))
+  p = size(x[1])[2]
+  converged::Bool = false
+  badBreak::Bool = false
+
+  
+  doWeights = false
+  if length(weights) != 0
+    doWeights = true
+  end
+
+  vcov::Array{T, 2} = fill(T(1), (p, p))
+  xwx::Array{T, 2} = zeros(T, (p, p))
+  w::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0)
+
+  while (relErr > control.epsilon)
+
+    if control.printError
+      println("Iteration: $iter")
+    end
+    
+    w = W(matrixType, solver, distrib, link, mu, eta)
+    if doWeights
+      @threads for i in 1:nBlocks
+        w[i] .*= weights[i]
+      end
+    end
+
+    # println("Coefficient: ", coef)
+    
+    coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
+    coef = reshape(coef, (p,))
+    
+    if(control.printCoef)
+      println(coef)
+    end
+
+    @threads for i in 1:nBlocks
+      eta[i] = (x[i] * coef)[:, 1]
+    end
+    if doOffset
+      @threads for i in 1:nBlocks
+        eta[i] .+= offset[i]
+      end
+    end
+    mu = linkinv(matrixType, link, eta)
+    
+    if length(weights) == 0
+      residuals = devianceResiduals(matrixType, distrib, mu, y)
+    else
+      residuals = devianceResiduals(matrixType, distrib, mu, y, weights)
+    end
+
+    dev = T(0)
+    # Parallel Reduction Required
+    for i in 1:nBlocks
+      dev += sum(residuals[i])
+    end
+
+    absErr = absoluteError(dev, devold)
+    relErr = relativeError(dev, devold)
+    # absErr = absoluteError(coef, coefold)
+    # relErr = relativeError(coef, coefold)
+
+    frac::T = T(1)
+    coefdiff = coef .- coefold
+    # Step control
+    while (doStepControl && (dev > (devold + control.epsilon*dev)))
+      
+      if control.printError
+        println("\tStep control")
+        println("\tFraction: $frac")
+        println("\tDeviance: $dev")
+        println("\tAbsolute Error: $absErr")
+        println("\tRelative Error: $relErr")
+      end
+
+      frac *= 0.5
+      coef = coefold .+ (coefdiff .* frac)
+
+      if(control.printCoef)
+        println(coef)
+      end
+
+      # Abstract this block away into a function so 
+      # that it doesn't need to be repeated
+
+      # eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
+      @threads for i in 1:nBlocks
+        eta[i] = (x[i] * coef)[:, 1]
+      end
+      if doOffset
+        for i in 1:nBlocks
+          eta[i] .+= offset[i]
+        end
+      end
+      mu = linkinv(matrixType, link, eta)
+
+      if length(weights) == 0
+        residuals = devianceResiduals(matrixType, distrib, mu, y)
+      else
+        residuals = devianceResiduals(matrixType, distrib, mu, y, weights)
+      end
+
+      dev = T(0)
+      # Parallel Reduction Required
+      for i in 1:nBlocks
+        dev += sum(residuals[i])
+      end
+      
+      absErr = absoluteError(dev, devold)
+      relErr = relativeError(dev, devold)
+
+      if frac < control.minstep
+        error("Step control exceeded.")
+      end
+    end
+
+    devold = dev
+    coefold = coef
+
+    if control.printError
+      # println("Iteration: $iter")
+      println("Deviance: $dev")
+      println("Absolute Error: $absErr")
+      println("Relative Error: $relErr")
+    end
+
+    if iter >= control.maxit
+      println("Maximum number of iterations " * 
+                string(control.maxit) * " has been reached.")
+      badBreak = true
+      break
+    end
+
+    iter += 1
+
+  end
+
+  if badBreak
+    converged = false
+  else
+    converged = true
+  end
+
+  phi::T = T(1)
+  if calculateCovariance
+    xwx = XWX(x, w)
+    vcov = cov(solver, inverse, xwx)
+    if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
+      phi = dev/(n - p)
+      vcov .*= phi
+    end
+  end
+
+  set_num_threads(nthreads())
+
+  return GLMBlock1D(link, distrib, phi, coef, vcov, iter, relErr, absErr, converged, 
+             dev, residuals)
+end
 
