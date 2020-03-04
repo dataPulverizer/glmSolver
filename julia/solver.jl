@@ -3,15 +3,67 @@
 =#
 abstract type AbstractSolver end
 
+# Weights functions
+@inline function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  return ( (deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
+end
+function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [( (deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
+end
+function W(::Block1DParallel, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
+  end
+  return ret
+end
+
+
 #=
   GLM Solver uses (X'WX)^(-1) * X'Wy
 =#
 struct VanillaSolver <: AbstractSolver end
 
+# Weights for the VanillaSolver
+@inline function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-1)
+end
+function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
+end
+function W(::Block1DParallel, ::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1)
+  end
+  return ret
+end
+
 #=
   Solver Using QR Decomposition
 =#
 struct QRSolver <: AbstractSolver end
+
+# Weights for the QRSolver
+@inline function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
+end
+function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
+end
+function W(::Block1DParallel, ::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
+  nBlocks::Int64 = length(mu)
+  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
+  @threads for i in 1:nBlocks
+    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
+  end
+  return ret
+end
 
 #=
   TODO:
@@ -430,7 +482,7 @@ function W(::GELSYSolver, distrib::AbstractDistribution, link::AbstractLink, mu:
   nBlocks::Int64 = length(mu)
   return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
 end
-function W(::GELSYSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
+function W(matrixType::Block1DParallel, ::GELSYSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
   nBlocks::Int64 = length(mu)
   ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
   @threads for i in 1:nBlocks
@@ -581,7 +633,8 @@ function gradient(distrib::AbstractDistribution, link::AbstractLink,
   df = n - p
   @assert(df > 0, "Number of items not greater than number of parameters")
   phi::T = tmp.X2/df
-  return tmp.grad ./phi
+  grad = tmp.grad ./phi
+  return grad
 end
 
 #=
@@ -591,7 +644,7 @@ function gradient(distrib::AbstractDistribution, link::AbstractLink,
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   
-  nBlocks::Int64 = length(y); n::Int64 = T(0)
+  nBlocks::Int64 = length(y); n::Int64 = 0
   p::Int64 = size(x[1])[2]; grad::Array{T, 1} = zeros(T, p)
   X2::T = T(0)
 
@@ -607,7 +660,8 @@ function gradient(distrib::AbstractDistribution, link::AbstractLink,
   df = n - p
   phi::T = X2/df
   @assert(df > 0, "Number of items not greater than number of parameters")
-  return grad ./phi
+  grad ./= phi
+  return grad
 end
 
 
@@ -615,12 +669,12 @@ function gradient(::Block1DParallel, distrib::AbstractDistribution, link::Abstra
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   
-  nBlocks::Int64 = length(y); p::Int64 = size(x[1])[2]; n::Int64 = T(0);
+  nBlocks::Int64 = length(y); p::Int64 = size(x[1])[2]; n::Int64 = 0;
   # grad::Array{T, 1} = zeros(T, p); X2::T = T(0)
   
   nStore = [Int64(0) for i in 1:nthreads()]
   X2Store = [T(0) for i in 1:nthreads()]
-  gradStore = [zeros(T, p) for i in 1:nthreads()]
+  gradStore = [Base.zeros(T, p) for i in 1:nthreads()]
   
   distribStore = [copy(distrib) for i in 1:nthreads()]
   linkStore = [copy(link) for i in 1:nthreads()]
@@ -632,7 +686,7 @@ function gradient(::Block1DParallel, distrib::AbstractDistribution, link::Abstra
     nStore[threadid()] += length(y[i])
   end
   
-  n = Int64(0); grad = zeros(T, p), X2 = T(0)
+  n = Int64(0); grad = zeros(T, p); X2 = T(0)
   for i in 1:nthreads()
     # nStore[1] += nStore[i]
     # gradStore[1] .+= gradStore[i]
@@ -649,12 +703,13 @@ function gradient(::Block1DParallel, distrib::AbstractDistribution, link::Abstra
   @assert(df > 0, "Number of items not greater than number of parameters")
   
   # return gradStore[1]./phi
-  return grad ./phi
+  grad ./= phi
+  return grad
 end
 
 #==============================  Simple Gradient Descent Solver ==============================#
 
-struct GradientDescentSolver{T} <: AbstractGradientDescentSolver
+mutable struct GradientDescentSolver{T} <: AbstractGradientDescentSolver
   learningRate::T
   function GradientDescentSolver(learningRate::T = T(1E-6)) where {T <: AbstractFloat}
     return new{T}(learningRate)
@@ -683,13 +738,63 @@ function solve!(solver::GradientDescentSolver, distrib::AbstractDistribution,
   return coef
 end
 
-function solve!(::Block1DParallel, solver::GradientDescentSolver, 
+function solve!(dataType::Block1DParallel, solver::GradientDescentSolver, 
   distrib::AbstractDistribution, link::AbstractLink, 
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta);
+  grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
+  return coef
+end
+
+#==============================  Gradient Descent Momentum Solver ==============================#
+
+mutable struct MomentumSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  momentum::T
+  delta::Array{T, 1}
+  function MomentumSolver(learningRate::T, momentum::T, p::Int64) where {T <: AbstractFloat}
+    return new{T}(learningRate, momentum, zeros(T, p))
+  end
+  function MomentumSolver(learningRate::T, momentum::T, delta::Array{T, 1}) where {T <: AbstractFloat}
+    return new{T}(learningRate, momentum, delta)
+  end
+end
+#= Copy constructor =#
+function copy(solver::MomentumSolver{T}) where {T}
+  return MomentumSolver(solver.learningRate, solver.momentum, copy(solver.delta))
+end
+
+
+function solve!(solver::MomentumSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
+  return coef
+end
+
+function solve!(solver::MomentumSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
+  return coef
+end
+
+function solve!(dataType::Block1DParallel, solver::MomentumSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
   return coef
 end
 

@@ -1,6 +1,3 @@
-#=
-  Error Functions, GLM Object, Z, W
-=#
 
 # This implementation of calculation of z is the same for all the link functions
 @inline function Z(link::AbstractLink, y::Array{T, 1}, mu::Array{T, 1}, 
@@ -23,58 +20,6 @@ function Z(::Block1DParallel, link::AbstractLink, y::Array{Array{T, 1}, 1}, mu::
   end
   return ret
 end
-
-# Weights for the VanillaSolver
-@inline function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
-  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-1)
-end
-function W(::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1) for i in 1:nBlocks]
-end
-function W(::Block1DParallel, ::VanillaSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
-  @threads for i in 1:nBlocks
-    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-1)
-  end
-  return ret
-end
-
-# Weights for the QRSolver
-@inline function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
-  return ((deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
-end
-function W(::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  return [((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
-end
-function W(::Block1DParallel, ::QRSolver, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
-  @threads for i in 1:nBlocks
-    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
-  end
-  return ret
-end
-
-# The actual weights function used
-@inline function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{T, 1}, eta::Array{T, 1}) where {T <: AbstractFloat}
-  return ( (deta_dmu(link, mu, eta).^2) .* variance(distrib, mu)).^(-0.5)
-end
-function W(distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  return [( (deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5) for i in 1:nBlocks]
-end
-function W(::Block1DParallel, distrib::AbstractDistribution, link::AbstractLink, mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
-  nBlocks::Int64 = length(mu)
-  ret::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, nBlocks)
-  @threads for i in 1:nBlocks
-    ret[i] = ((deta_dmu(link, mu[i], eta[i]).^2) .* variance(distrib, mu[i])).^(-0.5)
-  end
-  return ret
-end
-
 
 # For parameters for GLM
 struct Control{T <: AbstractFloat}

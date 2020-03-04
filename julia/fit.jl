@@ -594,7 +594,6 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
               offset::Array{T, 1} = Array{T, 1}(undef, 0), 
               weights = Array{T, 1}(undef, 0)) where {T <: AbstractFloat}
   
-  # TODO: Gradient Descent init!()
   y, weights = init!(solver, distrib, y, weights)
   
   coef = zeros(T, size(x)[2])
@@ -765,7 +764,6 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1},
               offset::Array{Array{T, 1}, 1} = Array{Array{T, 1}, 1}(undef, 0), 
               weights = Array{Array{T, 1}, 1}(undef, 0)) where {T <: AbstractFloat}
   
-  # TODO: Gradient Descent init!()
   y, weights = init!(solver, distrib, y, weights)
 
   coef = zeros(T, size(x[1])[2])
@@ -958,7 +956,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
   
   #= Set BLAS threads =#
   set_num_threads(1)
-  # TODO: Gradient Descent init!()
+  
   y, weights = init!(solver, matrixType, distrib, y, weights)
 
   coef = zeros(T, size(x[1])[2])
@@ -980,7 +978,6 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
     end
   end
   mu = linkinv(matrixType, link, eta)
-
 
   absErr::T = T(Inf)
   relErr::T = T(Inf)
