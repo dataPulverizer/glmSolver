@@ -625,7 +625,7 @@ end
 #=
   Gradient function for regular data
 =#
-function gradient(distrib::AbstractDistribution, link::AbstractLink,
+function gradient(::RegularData, distrib::AbstractDistribution, link::AbstractLink,
             y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
             eta::Array{T, 1}) where {T <: AbstractFloat}
   n, p = size(x)
@@ -640,7 +640,7 @@ end
 #=
   Gradient function for blocked data
 =#
-function gradient(distrib::AbstractDistribution, link::AbstractLink, 
+function gradient(::Block1D, distrib::AbstractDistribution, link::AbstractLink, 
   y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}) where {T <: AbstractFloat}
   
@@ -720,20 +720,20 @@ function copy(solver::GradientDescentSolver{T}) where {T}
   return GradientDescentSolver(solver.learningRate)
 end
 
-function solve!(solver::GradientDescentSolver, distrib::AbstractDistribution, 
+function solve!(dataType::RegularData, solver::GradientDescentSolver, distrib::AbstractDistribution, 
   link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
   eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta);
+  grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
   return coef
 end
 
-function solve!(solver::GradientDescentSolver, distrib::AbstractDistribution,
+function solve!(dataType::Block1D, solver::GradientDescentSolver, distrib::AbstractDistribution,
   link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta);
+  grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
   return coef
 end
@@ -767,21 +767,21 @@ function copy(solver::MomentumSolver{T}) where {T}
 end
 
 
-function solve!(solver::MomentumSolver, distrib::AbstractDistribution, 
+function solve!(dataType::RegularData, solver::MomentumSolver, distrib::AbstractDistribution, 
   link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
   eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta)
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
   return coef
 end
 
-function solve!(solver::MomentumSolver, distrib::AbstractDistribution,
+function solve!(dataType::Block1D, solver::MomentumSolver, distrib::AbstractDistribution,
   link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta)
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
   return coef
@@ -824,21 +824,21 @@ function copy(solver::NesterovSolver{T}) where {T}
 end
 
 
-function solve!(solver::NesterovSolver, distrib::AbstractDistribution, 
+function solve!(dataType::RegularData, solver::NesterovSolver, distrib::AbstractDistribution, 
   link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
   eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta)
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
   return coef
 end
 
-function solve!(solver::NesterovSolver, distrib::AbstractDistribution,
+function solve!(dataType::Block1D, solver::NesterovSolver, distrib::AbstractDistribution,
   link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
   mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
   
-  grad = gradient(distrib, link, y, x, mu, eta)
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
   return coef
