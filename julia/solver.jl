@@ -798,6 +798,74 @@ function solve!(dataType::Block1DParallel, solver::MomentumSolver,
   return coef
 end
 
+#==============================  Gradient Descent Nesterov Solver ==============================#
+#= Modify/Unmodify coefficients for Nesterov =#
+function NesterovModifier(obj::AbstractGradientDescentSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
+  return
+end
+function NesterovUnModifier(obj::AbstractGradientDescentSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
+  return
+end
+
+mutable struct NesterovSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  momentum::T
+  delta::Array{T, 1}
+  function NesterovSolver(learningRate::T, momentum::T, p::Int64) where {T <: AbstractFloat}
+    return new{T}(learningRate, momentum, zeros(T, p))
+  end
+  function NesterovSolver(learningRate::T, momentum::T, delta::Array{T, 1}) where {T <: AbstractFloat}
+    return new{T}(learningRate, momentum, delta)
+  end
+end
+#= Copy constructor =#
+function copy(solver::NesterovSolver{T}) where {T}
+  return NesterovSolver(solver.learningRate, solver.momentum, copy(solver.delta))
+end
+
+
+function solve!(solver::NesterovSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
+  return coef
+end
+
+function solve!(solver::NesterovSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
+  return coef
+end
+
+function solve!(dataType::Block1DParallel, solver::NesterovSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
+  solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
+  coef .+= solver.delta
+  return coef
+end
+
+function NesterovModifier(obj::NesterovSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
+  coef .-= obj.momentum .* obj.delta
+  return coef
+end
+function NesterovUnModifier(obj::NesterovSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
+  coef .+= obj.momentum .* obj.delta
+  return coef
+end
+
+
+
 #==============================  GRADIENT DESCENT INITIALIZERS ==============================#
 
 # init type return.

@@ -637,11 +637,17 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
     if control.printError
       println("Iteration: $iter")
     end
-    
-    w = W(solver, distrib, link, mu, eta)
 
-    if doWeights
-      w .*= weights
+    if typeof(solver) <: NesterovSolver
+      coef .= NesterovModifier(solver, coef);
+      
+      eta = x * coef
+      if doOffset
+        eta .+= offset
+      end
+      mu = linkinv(link, eta)
+
+      coef .= NesterovUnModifier(solver, coef);
     end
 
     coef = solve!(solver, distrib, link, y, x, mu, eta, coef)
@@ -740,6 +746,10 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T},
   
   phi::T = T(1)
   if calculateCovariance
+    w = W(solver, distrib, link, mu, eta)
+    if doWeights
+      w .*= weights
+    end
     xwx = XWX(x, w)
     vcov = cov(solver, inverse, xwx)
     if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
@@ -811,12 +821,19 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1},
     if control.printError
       println("Iteration: $iter")
     end
-    
-    w = W(solver, distrib, link, mu, eta)
-    if doWeights
-      for i in 1:nBlocks
-        w[i] .*= weights[i]
+
+    if typeof(solver) <: NesterovSolver
+      coef .= NesterovModifier(solver, coef);
+      
+      eta = [ (x[i] * coef)[:, 1] for i in 1:nBlocks]
+      if doOffset
+        for i in 1:nBlocks
+          eta[i] .+= offset[i]
+        end
       end
+      mu = linkinv(link, eta)
+
+      coef .= NesterovUnModifier(solver, coef);
     end
 
     coef = solve!(solver, distrib, link, y, x, mu, eta, coef)
@@ -928,6 +945,12 @@ function glm(::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}, 1},
 
   phi::T = T(1)
   if calculateCovariance
+    w = W(solver, distrib, link, mu, eta)
+    if doWeights
+      for i in 1:nBlocks
+        w[i] .*= weights[i]
+      end
+    end
     xwx = XWX(x, w)
     vcov = cov(solver, inverse, xwx)
     if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
@@ -1008,12 +1031,21 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
     if control.printError
       println("Iteration: $iter")
     end
-    
-    w = W(matrixType, solver, distrib, link, mu, eta)
-    if doWeights
+
+    if typeof(solver) <: NesterovSolver
+      coef .= NesterovModifier(solver, coef);
+      
       @threads for i in 1:nBlocks
-        w[i] .*= weights[i]
+        eta[i] = (x[i] * coef)[:, 1]
       end
+      if doOffset
+        @threads for i in 1:nBlocks
+          eta[i] .+= offset[i]
+        end
+      end
+      mu = linkinv(matrixType, link, eta)
+
+      coef .= NesterovUnModifier(solver, coef);
     end
 
     # println("Coefficient: ", coef)
@@ -1135,6 +1167,12 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
 
   phi::T = T(1)
   if calculateCovariance
+    w = W(matrixType, solver, distrib, link, mu, eta)
+    if doWeights
+      @threads for i in 1:nBlocks
+        w[i] .*= weights[i]
+      end
+    end
     xwx = XWX(x, w)
     vcov = cov(solver, inverse, xwx)
     if (typeof(distrib) != BernoulliDistribution) | (typeof(distrib) != BinomialDistribution) | (typeof(distrib) != PoissonDistribution)
