@@ -716,7 +716,7 @@ mutable struct GradientDescentSolver{T} <: AbstractGradientDescentSolver
   end
 end
 #= Copy constructor =#
-function copy(solver::GradientDescentSolver{T}) where {T}
+function copy(solver::GradientDescentSolver)
   return GradientDescentSolver(solver.learningRate)
 end
 
@@ -726,7 +726,7 @@ function solve!(dataType::RegularData, solver::GradientDescentSolver, distrib::A
   
   grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1D, solver::GradientDescentSolver, distrib::AbstractDistribution,
@@ -735,7 +735,7 @@ function solve!(dataType::Block1D, solver::GradientDescentSolver, distrib::Abstr
   
   grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1DParallel, solver::GradientDescentSolver, 
@@ -745,7 +745,7 @@ function solve!(dataType::Block1DParallel, solver::GradientDescentSolver,
   
   grad = gradient(dataType, distrib, link, y, x, mu, eta);
   coef .+= solver.learningRate .* grad;
-  return coef
+  return solver, coef
 end
 
 #==============================  Gradient Descent Momentum Solver ==============================#
@@ -762,7 +762,7 @@ mutable struct MomentumSolver{T} <: AbstractGradientDescentSolver
   end
 end
 #= Copy constructor =#
-function copy(solver::MomentumSolver{T}) where {T}
+function copy(solver::MomentumSolver)
   return MomentumSolver(solver.learningRate, solver.momentum, copy(solver.delta))
 end
 
@@ -774,7 +774,7 @@ function solve!(dataType::RegularData, solver::MomentumSolver, distrib::Abstract
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1D, solver::MomentumSolver, distrib::AbstractDistribution,
@@ -784,7 +784,7 @@ function solve!(dataType::Block1D, solver::MomentumSolver, distrib::AbstractDist
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1DParallel, solver::MomentumSolver, 
@@ -795,16 +795,16 @@ function solve!(dataType::Block1DParallel, solver::MomentumSolver,
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 #==============================  Gradient Descent Nesterov Solver ==============================#
-#= Modify/Unmodify coefficients for Nesterov =#
+#= Default Modify/Unmodify coefficients for Nesterov =#
 function NesterovModifier(obj::AbstractGradientDescentSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
-  return
+  return coef
 end
 function NesterovUnModifier(obj::AbstractGradientDescentSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
-  return
+  return coef
 end
 
 mutable struct NesterovSolver{T} <: AbstractGradientDescentSolver
@@ -819,7 +819,7 @@ mutable struct NesterovSolver{T} <: AbstractGradientDescentSolver
   end
 end
 #= Copy constructor =#
-function copy(solver::NesterovSolver{T}) where {T}
+function copy(solver::NesterovSolver)
   return NesterovSolver(solver.learningRate, solver.momentum, copy(solver.delta))
 end
 
@@ -831,7 +831,7 @@ function solve!(dataType::RegularData, solver::NesterovSolver, distrib::Abstract
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1D, solver::NesterovSolver, distrib::AbstractDistribution,
@@ -841,7 +841,7 @@ function solve!(dataType::Block1D, solver::NesterovSolver, distrib::AbstractDist
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 function solve!(dataType::Block1DParallel, solver::NesterovSolver, 
@@ -852,7 +852,7 @@ function solve!(dataType::Block1DParallel, solver::NesterovSolver,
   grad = gradient(dataType, distrib, link, y, x, mu, eta)
   solver.delta .= (solver.momentum .* solver.delta) .+ solver.learningRate .* grad
   coef .+= solver.delta
-  return coef
+  return solver, coef
 end
 
 function NesterovModifier(obj::NesterovSolver, coef::Array{T, 1}) where {T <: AbstractFloat}
@@ -864,6 +864,55 @@ function NesterovUnModifier(obj::NesterovSolver, coef::Array{T, 1}) where {T <: 
   return coef
 end
 
+#==============================  Gradient Descent Adagrad Solver ==============================#
+#= Modify/Unmodify coefficients for Adagrad =#
+mutable struct AdagradSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  G::Array{T, 1}
+  epsilon::T
+  function AdagradSolver(learningRate::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, zeros(T, p), epsilon)
+  end
+  function AdagradSolver(learningRate::T, G::Array{T, 1}, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, G, epsilon)
+  end
+end
+#= Copy constructor =#
+function copy(solver::AdagradSolver)
+  return AdagradSolver(solver.learningRate, copy(solver.G), solver.epsilon)
+end
+
+
+function solve!(dataType::RegularData, solver::AdagradSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
+  solver.G += coef.^2
+  coef .+= (solver.learningRate .* grad)./((solver.G .+ solver.epsilon).^0.5)
+  return solver, coef
+end
+
+function solve!(dataType::Block1D, solver::AdagradSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
+  solver.G += coef.^2
+  coef .+= (solver.learningRate .* grad)./((solver.G .+ solver.epsilon).^0.5)
+  return solver, coef
+end
+
+function solve!(dataType::Block1DParallel, solver::AdagradSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  grad = gradient(dataType, distrib, link, y, x, mu, eta)
+  solver.G += coef.^2
+  coef .+= (solver.learningRate .* grad)./((solver.G .+ solver.epsilon).^0.5)
+  return solver, coef
+end
 
 
 #==============================  GRADIENT DESCENT INITIALIZERS ==============================#

@@ -8,7 +8,7 @@ using .GLMSolver
 
 using DelimitedFiles: readdlm, writedlm
 
-function gdDataDemo(niter::Int64 = 10)
+function gdDataDemo(niter::Int64 = 10, learningRate::Float64 = 3E-6)
 
   path = "/home/chib/code/glmSolver/data/";
 
@@ -30,7 +30,7 @@ function gdDataDemo(niter::Int64 = 10)
   
   gammaModel = glm(RegularData(), energyX, 
         energyY, GammaDistribution(), LogLink(),
-        #= solver =# GradientDescentSolver(1E-6), inverse = GETRIInverse(),
+        #= solver =# GradientDescentSolver(learningRate), inverse = GETRIInverse(),
         control = Control{Float64}(maxit = niter), 
         calculateCovariance = true, 
         doStepControl = false);
@@ -39,7 +39,7 @@ function gdDataDemo(niter::Int64 = 10)
   #= Gradient Descent Block Model =#
   gammaModel = glm(Block1D(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        #= solver =# GradientDescentSolver(1E-6), 
+        #= solver =# GradientDescentSolver(learningRate), 
         inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
         calculateCovariance = true, 
         doStepControl = false);
@@ -48,7 +48,7 @@ function gdDataDemo(niter::Int64 = 10)
   #= Gradient Descent Block1DParallel Model =#
   gammaModel = glm(Block1DParallel(), energyBlockX, 
         energyBlockY, GammaDistribution(), LogLink(),
-        #= solver =# GradientDescentSolver(1E-6),
+        #= solver =# GradientDescentSolver(learningRate),
         inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
         calculateCovariance = true, 
         doStepControl = false);
@@ -159,6 +159,60 @@ function nesterovDataDemo(niter::Int64 = 10, learningRate::Float64 = 3E-7, momen
   
   return
 end
+
+
+
+function adagradDataDemo(niter::Int64 = 10, learningRate::Float64 = 3E-7, epsilon::Float64 = 1E-8)
+
+  path = "/home/chib/code/glmSolver/data/";
+
+  energyBlockX = readBlockMatrix(Float64, path * "energyScaledBlockX/");
+  energyBlockY = readBlockMatrix(Float64, path * "energyScaledBlockY/");
+  
+  energyX = read2DArray(Float64, path * "energyScaledX.bin");
+  energyY = read2DArray(Float64, path * "energyScaledY.bin");
+
+  #= Number of parameters =#
+  p = size(energyX)[2]
+
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+      energyBlockY, GammaDistribution(), LogLink(),
+      #= solver =# GESVSolver(), inverse = GETRIInverse());
+  println("Full GLM Solve\n", gammaModel.coefficients)
+
+  println("The outputs for all these models should be the same.");
+  
+  gammaModel = glm(RegularData(), energyX, 
+      energyY, GammaDistribution(), LogLink(),
+      #= solver =# AdagradSolver(learningRate, p, epsilon), 
+      inverse = GETRIInverse(),
+      control = Control{Float64}(maxit = niter), 
+      calculateCovariance = true, 
+      doStepControl = false);
+  println("Gradient Descent With Regular Data\n", gammaModel.coefficients)
+  #===================================================================#
+  #= Gradient Descent Block Model =#
+  gammaModel = glm(Block1D(), energyBlockX, 
+      energyBlockY, GammaDistribution(), LogLink(),
+      #= solver =# AdagradSolver(learningRate, p, epsilon), 
+      inverse = GETRIInverse(), 
+      control = Control{Float64}(maxit = niter), 
+      calculateCovariance = true, 
+      doStepControl = false);
+  println("Gradient Descent With Block Data \n", gammaModel.coefficients)
+  
+  #= Gradient Descent Nesterov Block Model =#
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+      energyBlockY, GammaDistribution(), LogLink(),
+      #= solver =# AdagradSolver(learningRate, p, epsilon),
+      inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
+      calculateCovariance = true, 
+      doStepControl = false);
+  println("Gradient Descent With Parallel Block Data \n", gammaModel.coefficients)
+  
+  return
+end
+
 
 
 

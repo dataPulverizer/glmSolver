@@ -650,7 +650,7 @@ function glm(matrixType::RegularData, x::Array{T, 2}, y::Array{T},
       coef .= NesterovUnModifier(solver, coef);
     end
 
-    coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
+    solver, coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
     # println("Coef gradient descent regular data: ", coef, "\n")
     
     if(control.printCoef)
@@ -836,7 +836,7 @@ function glm(matrixType::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}
       coef .= NesterovUnModifier(solver, coef);
     end
 
-    coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
+    solver, coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
     coef = reshape(coef, (p,))
     
     if(control.printCoef)
@@ -1050,7 +1050,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
 
     # println("Coefficient: ", coef)
     
-    coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
+    solver, coef = solve!(matrixType, solver, distrib, link, y, x, mu, eta, coef)
     coef = reshape(coef, (p,))
     
     if(control.printCoef)
