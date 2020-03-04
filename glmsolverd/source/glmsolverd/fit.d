@@ -585,6 +585,9 @@ if(isFloatingPoint!T)
     if(control.printError)
       writeln("Iteration: ", iter);
     
+    /* For Adam */
+    solver.passIteration(iter);
+    
     if(solver.name == "Nesterov")
     {
       solver.NesterovModifier(coef);
@@ -804,6 +807,9 @@ if(isFloatingPoint!T)
   {
     if(control.printError)
       writeln("Iteration: ", iter);
+    
+    /* For Adam */
+    solver.passIteration(iter);
     
     if(solver.name == "Nesterov")
     {

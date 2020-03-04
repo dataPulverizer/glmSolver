@@ -914,6 +914,177 @@ function solve!(dataType::Block1DParallel, solver::AdagradSolver,
   return solver, coef
 end
 
+#==============================  Gradient Descent Adadelta Solver ==============================#
+#= Modify/Unmodify coefficients for Adagrad =#
+mutable struct AdadeltaSolver{T} <: AbstractGradientDescentSolver
+  momentum::T
+  G::Array{T, 1}
+  B::Array{T, 1}
+  epsilon::T
+  function AdadeltaSolver(momentum::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(momentum, zeros(T, p), zeros(T, p), epsilon)
+  end
+  function AdadeltaSolver(momentum::T, G::Array{T, 1}, B::Array{T, 1}, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(momentum, G, B, epsilon)
+  end
+end
+#= Copy constructor =#
+function copy(solver::AdadeltaSolver)
+  return AdadeltaSolver(solver.momentum, copy(solver.G), copy(solver.B), solver.epsilon)
+end
+
+macro AdadeltaUpdate()
+  expr = quote
+    grad = gradient(dataType, distrib, link, y, x, mu, eta)
+    momentumM1 = (1 - solver.momentum)
+    solver.G = (solver.momentum .* solver.G) .+ (momentumM1 .* (grad.^2))
+    diff = (grad .* ((solver.B .+ solver.epsilon).^0.5)) ./((solver.G .+ solver.epsilon).^0.5)
+    coef .+= diff
+    solver.B .+= (solver.momentum .* solver.B) .+ (momentumM1 .* (diff.^2))
+    return solver, coef
+  end
+  return esc(expr)
+end
+
+function solve!(dataType::RegularData, solver::AdadeltaSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+
+  @AdadeltaUpdate
+end
+
+function solve!(dataType::Block1D, solver::AdadeltaSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AdadeltaUpdate
+end
+
+function solve!(dataType::Block1DParallel, solver::AdadeltaSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AdadeltaUpdate
+end
+
+#==============================  Gradient Descent RMSprop Solver ==============================#
+#= Modify/Unmodify coefficients for Adagrad =#
+mutable struct RMSpropSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  G::Array{T, 1}
+  epsilon::T
+  function RMSpropSolver(learningRate::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, zeros(T, p), epsilon)
+  end
+  function RMSpropSolver(learningRate::T, G::Array{T, 1}, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, G, epsilon)
+  end
+end
+#= Copy constructor =#
+function copy(solver::RMSpropSolver)
+  return RMSpropSolver(solver.learningRate, copy(solver.G), solver.epsilon)
+end
+
+macro RMSpropUpdate()
+  expr = quote
+    grad = gradient(dataType, distrib, link, y, x, mu, eta)
+    solver.G = (0.9 .* solver.G) .+ (0.1 .* (grad.^2))
+    diff = (solver.learningRate .* grad) ./((solver.G .+ solver.epsilon).^0.5)
+    coef .+= diff
+    return solver, coef
+  end
+  return esc(expr)
+end
+
+function solve!(dataType::RegularData, solver::RMSpropSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+
+  @RMSpropUpdate
+end
+
+function solve!(dataType::Block1D, solver::RMSpropSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @RMSpropUpdate
+end
+
+function solve!(dataType::Block1DParallel, solver::RMSpropSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @RMSpropUpdate
+end
+
+#==============================  Gradient Descent Adam Solver ==============================#
+function iteration(obj::AbstractGradientDescentSolver, iter::Int64)
+  return obj
+end
+#= Adagrad =#
+mutable struct AdamSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  b1::T
+  b2::T
+  m::Array{T, 1}
+  v::Array{T, 1}
+  epsilon::T
+  iter::Int64
+  function AdamSolver(learningRate::T, b1::T, b2::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, zeros(T, p), zeros(T, p), epsilon, Int64(1))
+  end
+  function AdamSolver(learningRate::T, b1::T, b2::T, m::Array{T, 1}, v::Array{T, 1}, epsilon::T, iter::Int64) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, m, v, epsilon, iter)
+  end
+end
+#= Copy constructor =#
+function copy(solver::AdamSolver)
+  return AdamSolver(solver.learningRate, solver.b1, solver.b2, copy(solver.m), copy(solver.v), solver.epsilon, solver.iter)
+end
+function iteration(obj::AdamSolver, iter::Int64)
+  obj.iter = iter
+  return obj
+end
+
+
+macro AdamUpdate()
+  expr = quote
+    grad = gradient(dataType, distrib, link, y, x, mu, eta)
+    solver.m = (solver.b1 .* solver.m) .+ ((1 - solver.b1) .* grad)
+    solver.v = (solver.b2 .* solver.v) .+ ((1 - solver.b2) .* (grad.^2))
+    mp = solver.m ./(1 - (solver.b1^solver.iter))
+    vp = solver.v ./(1 - (solver.b2^solver.iter))
+    diff = (solver.learningRate .* mp)./(solver.epsilon .+ (vp.^0.5))
+    coef .+= diff
+    return solver, coef
+  end
+  return esc(expr)
+end
+
+function solve!(dataType::RegularData, solver::AdamSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+
+  @AdamUpdate
+end
+
+function solve!(dataType::Block1D, solver::AdamSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AdamUpdate
+end
+
+function solve!(dataType::Block1DParallel, solver::AdamSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AdamUpdate
+end
+
 
 #==============================  GRADIENT DESCENT INITIALIZERS ==============================#
 
