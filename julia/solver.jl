@@ -1023,7 +1023,7 @@ end
 function iteration(obj::AbstractGradientDescentSolver, iter::Int64)
   return obj
 end
-#= Adagrad =#
+#= Adam =#
 mutable struct AdamSolver{T} <: AbstractGradientDescentSolver
   learningRate::T
   b1::T
@@ -1149,6 +1149,74 @@ function solve!(dataType::Block1DParallel, solver::AdaMaxSolver,
   
   @AdaMaxUpdate
 end
+
+#==============================  Gradient Descent NAdam Solver ==============================#
+#= NAdam =#
+mutable struct NAdamSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  b1::T
+  b2::T
+  m::Array{T, 1}
+  v::Array{T, 1}
+  epsilon::T
+  iter::Int64
+  function NAdamSolver(learningRate::T, b1::T, b2::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, zeros(T, p), zeros(T, p), epsilon, Int64(1))
+  end
+  function NAdamSolver(learningRate::T, b1::T, b2::T, m::Array{T, 1}, v::Array{T, 1}, epsilon::T, iter::Int64) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, m, v, epsilon, iter)
+  end
+end
+#= Copy constructor =#
+function copy(solver::NAdamSolver)
+  return NAdamSolver(solver.learningRate, solver.b1, solver.b2, copy(solver.m), copy(solver.v), solver.epsilon, solver.iter)
+end
+function iteration(obj::NAdamSolver, iter::Int64)
+  obj.iter = iter
+  return obj
+end
+
+
+macro NAdamUpdate()
+  expr = quote
+    grad = gradient(dataType, distrib, link, y, x, mu, eta)
+
+    solver.m .= (solver.b1 .* solver.m) .+ ((1 - solver.b1) .* grad)
+    mp = solver.m ./(1 - (solver.b1^solver.iter))
+    solver.v .= (solver.b2 .* solver.v) .+ ((1 - solver.b2) .* (grad.^2))
+    vp = solver.v ./(1 - (solver.b2.^solver.iter))
+    tmp1 = solver.learningRate ./((vp.^0.5) .+ solver.epsilon);
+    tmp2 = (solver.b1 .* mp) .+ ((1 - solver.b1) .* grad) ./(1 - (solver.b1^solver.iter))
+    
+    coef .+= (tmp1 .* tmp2)
+    
+    return solver, coef
+  end
+  return esc(expr)
+end
+
+function solve!(dataType::RegularData, solver::NAdamSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+
+  @NAdamUpdate
+end
+
+function solve!(dataType::Block1D, solver::NAdamSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @NAdamUpdate
+end
+
+function solve!(dataType::Block1DParallel, solver::NAdamSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @NAdamUpdate
+end
+
 
 #==============================  GRADIENT DESCENT INITIALIZERS ==============================#
 
