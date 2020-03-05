@@ -1217,6 +1217,73 @@ function solve!(dataType::Block1DParallel, solver::NAdamSolver,
   @NAdamUpdate
 end
 
+#==============================  Gradient Descent AMSGrad Solver ==============================#
+#= AMSGrad =#
+mutable struct AMSGradSolver{T} <: AbstractGradientDescentSolver
+  learningRate::T
+  b1::T
+  b2::T
+  m::Array{T, 1}
+  v::Array{T, 1}
+  vp::Array{T, 1}
+  epsilon::T
+  iter::Int64
+  function AMSGradSolver(learningRate::T, b1::T, b2::T, p::Int64, epsilon::T) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, zeros(T, p), zeros(T, p), zeros(T, p), epsilon, Int64(1))
+  end
+  function AMSGradSolver(learningRate::T, b1::T, b2::T, m::Array{T, 1}, v::Array{T, 1}, vp::Array{T, 1}, epsilon::T, iter::Int64) where {T <: AbstractFloat}
+    return new{T}(learningRate, b1, b2, m, v, vp, epsilon, iter)
+  end
+end
+#= Copy constructor =#
+function copy(solver::AMSGradSolver)
+  return AMSGradSolver(solver.learningRate, solver.b1, solver.b2, copy(solver.m), copy(solver.v), copy(solver.vp), solver.epsilon, solver.iter)
+end
+function iteration(obj::AMSGradSolver, iter::Int64)
+  obj.iter = iter
+  return obj
+end
+
+
+macro AMSGradUpdate()
+  expr = quote
+    grad = gradient(dataType, distrib, link, y, x, mu, eta)
+
+    solver.m .= (solver.b1 .* solver.m) .+ ((1 - solver.b1) .* grad)
+    solver.v .= (solver.b2 .* solver.v) .+ ((1 - solver.b2) .* (grad.^2))
+    solver.vp .= max.(solver.vp, solver.v)
+    diff = (solver.learningRate .* solver.m)./((solver.vp .^0.5) .+ solver.epsilon)
+    
+    coef .+= diff
+    
+    return solver, coef
+  end
+  return esc(expr)
+end
+
+function solve!(dataType::RegularData, solver::AMSGradSolver, distrib::AbstractDistribution, 
+  link::AbstractLink, y::Array{T, 1}, x::Array{T, 2}, mu::Array{T, 1},
+  eta::Array{T, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+
+  @AMSGradUpdate
+end
+
+function solve!(dataType::Block1D, solver::AMSGradSolver, distrib::AbstractDistribution,
+  link::AbstractLink, y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AMSGradUpdate
+end
+
+function solve!(dataType::Block1DParallel, solver::AMSGradSolver, 
+  distrib::AbstractDistribution, link::AbstractLink, 
+  y::Array{Array{T, 1}, 1}, x::Array{Array{T, 2}, 1},
+  mu::Array{Array{T, 1}, 1}, eta::Array{Array{T, 1}, 1}, coef::Array{T, 1}) where {T <: AbstractFloat}
+  
+  @AMSGradUpdate
+end
+
+
 
 #==============================  GRADIENT DESCENT INITIALIZERS ==============================#
 

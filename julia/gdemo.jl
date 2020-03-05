@@ -5,7 +5,6 @@ path = "/home/chib/code/glmSolver/"
 
 include(path * "julia/GLMSolver.jl")
 using .GLMSolver
-
 using DelimitedFiles: readdlm, writedlm
 
 function gdDataDemo(niter::Int64 = 10, learningRate::Float64 = 3E-6)
@@ -473,6 +472,56 @@ function nadamDataDemo(niter::Int64 = 50, learningRate::Float64 = 3E-2, b1::Floa
   return
 end
 
+function amsGradDataDemo(niter::Int64 = 50, learningRate::Float64 = 9E-3, b1::Float64 = 0.9, b2::Float64 = 0.999, epsilon::Float64 = 1E-8)
 
+  path = "/home/chib/code/glmSolver/data/";
 
+  energyBlockX = readBlockMatrix(Float64, path * "energyScaledBlockX/");
+  energyBlockY = readBlockMatrix(Float64, path * "energyScaledBlockY/");
+  
+  energyX = read2DArray(Float64, path * "energyScaledX.bin");
+  energyY = read2DArray(Float64, path * "energyScaledY.bin");
+
+  #= Number of parameters =#
+  p = size(energyX)[2]
+
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# GESVSolver(), inverse = GETRIInverse());
+  println("Full GLM Solve\n", gammaModel.coefficients)
+
+  println("The outputs for all these models should be the same.");
+  
+  gammaModel = glm(RegularData(), energyX, 
+        energyY, GammaDistribution(), LogLink(),
+        #= solver =# AMSGradSolver(learningRate, b1, b2, p, epsilon), 
+        inverse = GETRIInverse(),
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Regular Data\n", gammaModel.coefficients)
+  #===================================================================#
+  #= Gradient Descent Block Model =#
+  gammaModel = glm(Block1D(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# AMSGradSolver(learningRate, b1, b2, p, epsilon), 
+        inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Block Data \n", gammaModel.coefficients)
+  
+  #= Gradient Descent Block1DParallel Model =#
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# AMSGradSolver(learningRate, b1, b2, p, epsilon),
+        inverse = GETRIInverse(), 
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Parallel Block Data \n", gammaModel.coefficients)
+  
+  return
+end
+
+amsGradDataDemo(50, 3E-2, 0.9, 0.999, 1E-8)
 

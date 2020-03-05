@@ -75,7 +75,7 @@ can be tried out. Link Functions:
   - [ ] v. Implement parallel solver algorithms.
     - [x] 1. 1-D block representation of matrices.
     - [ ] 2. 2-D block representation of matrices.
-  - [ ] vi. Include gradient descent solver - * working on this * .
+  - [x] vi. Include gradient descent solver.
   - [ ] vii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
   - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking. So that users can demo without
   data dependancy.
