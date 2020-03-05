@@ -368,3 +368,57 @@ function adamDataDemo(niter::Int64 = 50, learningRate::Float64 = 3E-2, b1::Float
   return
 end
 
+
+function adaMaxDataDemo(niter::Int64 = 10, learningRate::Float64 = 1E-1, b1::Float64 = 0.9, b2::Float64 = 0.999)
+
+  path = "/home/chib/code/glmSolver/data/";
+
+  energyBlockX = readBlockMatrix(Float64, path * "energyScaledBlockX/");
+  energyBlockY = readBlockMatrix(Float64, path * "energyScaledBlockY/");
+  
+  energyX = read2DArray(Float64, path * "energyScaledX.bin");
+  energyY = read2DArray(Float64, path * "energyScaledY.bin");
+
+  #= Number of parameters =#
+  p = size(energyX)[2]
+
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# GESVSolver(), inverse = GETRIInverse());
+  println("Full GLM Solve\n", gammaModel.coefficients)
+
+  println("The outputs for all these models should be the same.");
+  
+  gammaModel = glm(RegularData(), energyX, 
+        energyY, GammaDistribution(), LogLink(),
+        #= solver =# AdaMaxSolver(learningRate, b1, b2, p), 
+        inverse = GETRIInverse(),
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Regular Data\n", gammaModel.coefficients)
+  #===================================================================#
+  #= Gradient Descent Block Model =#
+  gammaModel = glm(Block1D(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# AdaMaxSolver(learningRate, b1, b2, p), 
+        inverse = GETRIInverse(),
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Block Data \n", gammaModel.coefficients)
+  
+  #= Gradient Descent Block1DParallel Model =#
+  gammaModel = glm(Block1DParallel(), energyBlockX, 
+        energyBlockY, GammaDistribution(), LogLink(),
+        #= solver =# AdaMaxSolver(learningRate, b1, b2, p),
+        inverse = GETRIInverse(), 
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Parallel Block Data \n", gammaModel.coefficients)
+  
+  return
+end
+
+

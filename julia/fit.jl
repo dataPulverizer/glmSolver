@@ -638,9 +638,7 @@ function glm(matrixType::RegularData, x::Array{T, 2}, y::Array{T},
       println("Iteration: $iter")
     end
 
-    if typeof(solver) <: AdamSolver
-      solver = iteration(solver, iter)
-    end
+    solver = iteration(solver, iter)
 
     if typeof(solver) <: NesterovSolver
       coef .= NesterovModifier(solver, coef);
@@ -826,9 +824,7 @@ function glm(matrixType::Block1D, x::Array{Array{T, 2}, 1}, y::Array{Array{T, 2}
       println("Iteration: $iter")
     end
 
-    if typeof(solver) <: AdamSolver
-      solver = iteration(solver, iter)
-    end
+    solver = iteration(solver, iter)
 
     if typeof(solver) <: NesterovSolver
       coef .= NesterovModifier(solver, coef);
@@ -1040,9 +1036,7 @@ function glm(matrixType::Block1DParallel, x::Array{Array{T, 2}, 1},
       println("Iteration: $iter")
     end
 
-    if typeof(solver) <: AdamSolver
-      solver = iteration(solver, iter)
-    end
+    solver = iteration(solver, iter)
 
     if typeof(solver) <: NesterovSolver
       coef .= NesterovModifier(solver, coef);
