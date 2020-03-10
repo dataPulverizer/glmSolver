@@ -75,7 +75,17 @@ can be tried out. Link Functions:
   - [ ] v. Implement parallel solver algorithms.
     - [x] 1. 1-D block representation of matrices.
     - [ ] 2. 2-D block representation of matrices.
-  - [x] vi. Include gradient descent solver.
+  - [x] vi. Include gradient descent solvers
+    - [x] (a) Gradient Descent
+    - [x] (b) Momentum
+    - [x] (c) Nesterov
+    - [x] (d) Adagrad
+    - [x] (e) Adadelta
+    - [x] (f) RMSProp
+    - [x] (g) Adam
+    - [x] (h) AdaMax
+    - [x] (i) NAdam
+    - [x] (j) AMSGrad.
   - [ ] vii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
   - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking. So that users can demo without
   data dependancy.
@@ -94,8 +104,10 @@ can be tried out. Link Functions:
 Version 0.2 Post-Processing & Model Search Implementation
 ---------------------------------------------------------------------------------------------------------------------
 
-- [ ] 1. Create summary function complete with pretty printing for the model output.
-- [ ] 2. Create diagnostic plotting functions for the model outputs.
+- [x] 1. Create summary function complete with pretty printing for the model output.
+- [ ] 2. Create diagnostic plotting functions for the model outputs. You
+      will probably need to write your own plotting library in Julia, D,
+      or Nim (if applicable).
 - [ ] 3. Measures/Tests such as X2, Significance tests, AIC/BIC, R^2, and so on.
 - [ ] 4. Model comparisons, T-tests, ANOVA and so forth. Refer to the model comparisons package in 
          R for inspiration.
