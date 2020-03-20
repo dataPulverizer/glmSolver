@@ -7,6 +7,8 @@ include(path * "julia/family.jl")
 include(path * "julia/solver.jl")
 include(path * "julia/tools.jl")
 include(path * "julia/fit.jl")
+include(path * "julia/sample.jl")
+include(path * "julia/simulate.jl")
 
 export write2DArray,
        writeBlockMatrix,
@@ -84,5 +86,27 @@ export write2DArray,
        GLMBlock1D,
        Block1D,
        Block1DParallel,
-       glm
+       glm,
+       generateRandomMatrix,
+       cov2cor,
+       cor2cov,
+       mvrnorm,
+       AbstractDistribution,
+       BetaDistribution,
+       sample,
+       UniformDistribution,
+       min,
+       max,
+       range,
+       I,
+       AbstractRandomCorrelationMatrix,
+       BetaGenerator,
+       OnionGenerator,
+       UniformGenerator,
+       VineGenerator,
+       randomCorrelationMatrix,
+       simulateData
+       AbstractPoissonDistribution
+       PoissonDistribution
+
 end # module
