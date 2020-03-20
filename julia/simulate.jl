@@ -5,10 +5,10 @@
 """
   Sampling from a poisson distribution
 """
-abstract type AbstractPoissonDistribution <: AbstractDistribution end
-struct PoissonDistribution{T} <: AbstractPoissonDistribution
+abstract type AbstractPoissonDistribution <: AbstractSampleDistribution end
+struct PoissonSampleDistribution{T} <: AbstractPoissonDistribution
   lambda::T
-  function PoissonDistribution(lambda::T) where {T <: AbstractFloat}
+  function PoissonSampleDistribution(lambda::T) where {T <: AbstractFloat}
     return new{T}(lambda)
   end
 end
@@ -21,10 +21,10 @@ end
       40, No. 1, pp 143 - 158.
   
   # Example:
-  sample(PoissonDistribution(1.0), (20,))
+  sample(PoissonSampleDistribution(1.0), (20,))
 
 """
-function sample(distrib::PoissonDistribution{T}, shape::Tuple{Vararg{Int64}}, version::Val{1}) where {T <: AbstractFloat}
+function sample(distrib::PoissonSampleDistribution{T}, shape::Tuple{Vararg{Int64}}, version::Val{1}) where {T <: AbstractFloat}
   
   n = prod(shape)
   p = exp(-distrib.lambda)
@@ -46,7 +46,7 @@ function sample(distrib::PoissonDistribution{T}, shape::Tuple{Vararg{Int64}}, ve
   return ret
 end
 
-function sample(distrib::PoissonDistribution{T}, shape::Int64, version::Val{1}) where {T <: AbstractFloat}
+function sample(distrib::PoissonSampleDistribution{T}, shape::Int64, version::Val{1}) where {T <: AbstractFloat}
   return sample(distrib, (shape,))
 end
 
@@ -77,7 +77,7 @@ function sample(::Type{<: AbstractPoissonDistribution}, lambda::Array{T}, versio
   return ret
 end
 
-function sample(distrib::PoissonDistribution{T}, shape::Tuple{Vararg{Int64}}, version::Val{2}) where {T <: AbstractFloat}
+function sample(distrib::PoissonSampleDistribution{T}, shape::Tuple{Vararg{Int64}}, version::Val{2}) where {T <: AbstractFloat}
   
   n = prod(shape)
   ret = zeros(T, shape)
@@ -100,7 +100,7 @@ function sample(distrib::PoissonDistribution{T}, shape::Tuple{Vararg{Int64}}, ve
   return ret
 end
 
-function sample(distrib::PoissonDistribution{T}, shape::Int64, version::Val{2}) where {T <: AbstractFloat}
+function sample(distrib::PoissonSampleDistribution{T}, shape::Int64, version::Val{2}) where {T <: AbstractFloat}
   return sample(distrib, (shape,))
 end
 
@@ -143,18 +143,24 @@ end
 
 """
   Function to simulate data
+
+  # Example
+  X, y = simulateData(Float64, PoissonDistribution(), LogLink(), 10, 1000)
+  X, y = simulateData(Float64, BinomialDistribution(), LogitLink(), 10, 1000)
+  X, y = simulateData(Float64, GammaDistribution(), LogLink(), 10, 1000)
+  X, y = simulateData(Float64, GaussianDistribution(), IdentityLink(), 10, 1000)
 """
 function simulateData(::Type{T}, distrib::AbstractDistribution, 
-              link::AbstractLink, p::Int64, n::Int64)
+              link::AbstractLink, p::Int64, n::Int64) where {T <: AbstractFloat}
   
-  X, eta, b = simulateData(T, p, n)
+  X, eta = simulateData(T, p, n)
   y = linkinv(link, eta)
 
-  if distrib <: PoissonDistribution
+  if typeof(distrib) <: PoissonDistribution
     y = sample(AbstractPoissonDistribution, y, Val{2}())
   end
 
-  if distrib <: BinomialDistribution
+  if typeof(distrib) <: BinomialDistribution
     y = map((x) -> T(1)*(x > 0), eta)
   end
     

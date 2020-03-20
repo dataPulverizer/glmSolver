@@ -63,15 +63,15 @@ end
 """
   Random Number Generator for Beta (and Uniform) Distribution
 """
-abstract type AbstractDistribution end
-struct BetaDistribution{T} <: AbstractDistribution
+abstract type AbstractSampleDistribution end
+struct BetaSampleDistribution{T} <: AbstractSampleDistribution
   alpha::T
   beta::T
-  function BetaDistribution(alpha::T, beta::T) where {T <: AbstractFloat}
+  function BetaSampleDistribution(alpha::T, beta::T) where {T <: AbstractFloat}
     return new{T}(alpha, beta)
   end
-  function BetaDistribution(alpha::T, beta::T) where {T <: Integer}
-    return BetaDistribution(Float64(alpha), Float64(beta))
+  function BetaSampleDistribution(alpha::T, beta::T) where {T <: Integer}
+    return BetaSampleDistribution(Float64(alpha), Float64(beta))
   end
 end
 
@@ -88,7 +88,7 @@ end
   Reference: C. P. Robert, G. Casella, 
             Monte Carlo Statistical Methods, Example 2.11 p44
 """
-function sample(distrib::BetaDistribution{T}, shape::Tuple{Vararg{Int64}}) where {T <: AbstractFloat}
+function sample(distrib::BetaSampleDistribution{T}, shape::Tuple{Vararg{Int64}}) where {T <: AbstractFloat}
   n = prod(shape)
   U = rand(T, n); V = rand(T, n)
   Y::Array{T} = zeros(T, shape)
@@ -105,29 +105,29 @@ function sample(distrib::BetaDistribution{T}, shape::Tuple{Vararg{Int64}}) where
   return Y
 end
 
-function sample(distrib::BetaDistribution{T}, shape::Int64) where {T <: AbstractFloat}
+function sample(distrib::BetaSampleDistribution{T}, shape::Int64) where {T <: AbstractFloat}
   return sample(distrib, (shape,))
 end
 
 #=======================================================================================================#
 
-struct UniformDistribution{T} <: AbstractDistribution
+struct UniformSampleDistribution{T} <: AbstractSampleDistribution
   min::T
   max::T
-  function UniformDistribution(min::T, max::T) where {T <: AbstractFloat}
+  function UniformSampleDistribution(min::T, max::T) where {T <: AbstractFloat}
     @assert(min < max, "Minimum value is not less than maximum value")
     return new{T}(min, max)
   end
-  function UniformDistribution(min::T, max::T) where {T <: Integer}
-    return UniformDistribution(Float64(min), Float64(max))
+  function UniformSampleDistribution(min::T, max::T) where {T <: Integer}
+    return UniformSampleDistribution(Float64(min), Float64(max))
   end
 end
 
-function sample(distrib::UniformDistribution{T}, shape::Tuple{Vararg{Int64}}) where {T <: AbstractFloat}
+function sample(distrib::UniformSampleDistribution{T}, shape::Tuple{Vararg{Int64}}) where {T <: AbstractFloat}
   rsample::Array{T} = rand(T, shape)
   return (rsample .* (distrib.max - distrib.min)) .+ distrib.min
 end
-function sample(distrib::UniformDistribution{T}, shape::Int64) where {T <: AbstractFloat}
+function sample(distrib::UniformSampleDistribution{T}, shape::Int64) where {T <: AbstractFloat}
   return sample(distrib, (shape,))
 end
 
@@ -213,7 +213,7 @@ function randomCorrelationMatrix(::VineGenerator, d::Int64, eta::T) where {T <: 
   
   for k in 1:(d - 1)
     beta = beta - (1/2)
-    distrib = BetaDistribution(beta, beta)
+    distrib = BetaSampleDistribution(beta, beta)
   
     for i in (k + 1):d
       P[k, i] = sample(distrib, 1)[1]
@@ -237,13 +237,13 @@ end
 """
 function randomCorrelationMatrix(::OnionGenerator, d::Int64, eta::T) where {T <: AbstractFloat}
   beta::T = eta + (d - 2)/2
-  distrib = BetaDistribution(beta, beta)
+  distrib = BetaSampleDistribution(beta, beta)
   u = sample(distrib, 1)[1]
   r = I(T, 2)
   r[1, 2] = r[2, 1] = 2*u - 1
   for k in 2:(d - 1)
     beta -= T(1/2)
-    distrib = BetaDistribution(T(k/2), beta)
+    distrib = BetaSampleDistribution(T(k/2), beta)
     y = sample(distrib, 1)[1]
     U = rand(T, k)
     w = sqrt(y) .* U
@@ -262,7 +262,7 @@ end
   randomCorrelationMatrix(BetaGenerator(), 10, (1.0, 1.0))
 """
 function randomCorrelationMatrix(::BetaGenerator, d::Int64, (alpha, beta)::Tuple{T, T}) where {T <: AbstractFloat}
-  distrib = BetaDistribution(alpha, beta)
+  distrib = BetaSampleDistribution(alpha, beta)
   r = sample(distrib, (d, d))
   # Change range to (-1, 1)
   r .= (r .* 2) .+ T(-1)
@@ -288,7 +288,7 @@ end
   randomCorrelationMatrix(Float64, UniformGenerator(), 10)
 """
 function randomCorrelationMatrix(::Type{T}, ::UniformGenerator, d::Int64) where {T <: AbstractFloat}
-  distrib = UniformDistribution(T(-1), T(1))
+  distrib = UniformSampleDistribution(T(-1), T(1))
   r = sample(distrib, (d, d))
   r .= T(0.5) .* (r + r')
   for i in 1:d
@@ -325,10 +325,10 @@ function simulateData(::Type{T}, p::Int64, n::Int64, delta::T = T(0)) where {T <
   X = mvrnorm(n, mu, corr)
   
   b = zeros(T, p)
-  idist = UniformDistribution(T(0), T(0.3))
+  idist = UniformSampleDistribution(T(0), T(0.3))
   b[1] = sample(idist, 1)[1]
   if length(b) > 1
-    distrib = UniformDistribution(T(-0.1), T(0.1))
+    distrib = UniformSampleDistribution(T(-0.1), T(0.1))
     b[2:p] = sample(distrib, p - 1)
   end
   

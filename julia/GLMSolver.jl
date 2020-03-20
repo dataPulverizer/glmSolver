@@ -91,10 +91,10 @@ export write2DArray,
        cov2cor,
        cor2cov,
        mvrnorm,
-       AbstractDistribution,
-       BetaDistribution,
+       AbstractSampleDistribution,
+       BetaSampleDistribution,
        sample,
-       UniformDistribution,
+       UniformSampleDistribution,
        min,
        max,
        range,
@@ -105,8 +105,8 @@ export write2DArray,
        UniformGenerator,
        VineGenerator,
        randomCorrelationMatrix,
-       simulateData
-       AbstractPoissonDistribution
-       PoissonDistribution
+       simulateData,
+       AbstractPoissonDistribution,
+       PoissonSampleDistribution
 
 end # module
