@@ -5,6 +5,21 @@
 using Base.Threads: @threads, nthreads, threadid
 using LinearAlgebra.BLAS: set_num_threads
 
+
+# Convert a matrix to a list of matrices
+function matrixToBlock(mat::Array{T, 2}, nBlocks::Int64) where {T <: AbstractFloat}
+  n = size(mat)[1]
+  ret = Array{Array{T, 2}, 1}(undef, nBlocks)
+  for i in 0:(nBlocks - 1)
+    start = div((n * i), nBlocks) + 1
+    finish = div((n*(i + 1)), nBlocks)
+    ret[i + 1] = mat[start:finish, :]
+  end
+
+  return ret
+end
+
+
 """
   Function to write 2D array to disk
 """

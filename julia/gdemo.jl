@@ -525,3 +525,51 @@ end
 
 amsGradDataDemo(50, 3E-2, 0.9, 0.999, 1E-8)
 
+#===================================================================#
+
+using Random: seed!
+seed!(0);
+gammaLogX, gammaLogY = simulateData(Float64, GammaDistribution(), LogLink(), 30, 100_000);
+gammaLogBlockX = matrixToBlock(gammaLogX, 100);
+gammaLogBlockY = matrixToBlock(gammaLogY, 100);
+
+function gdDataDemo2(niter::Int64 = 50, learningRate::Float64 = 1E-8)
+
+  #= Number of parameters =#
+  p = size(gammaLogX)[2]
+
+  gammaModel = glm(Block1DParallel(), gammaLogBlockX, 
+        gammaLogBlockY, GammaDistribution(), LogLink(),
+        #= solver =# GESVSolver(), inverse = GETRIInverse());
+  println("Full GLM Solve\n", gammaModel.coefficients)
+
+  println("The outputs for all these models should be the same.");
+  
+  gammaModel = glm(RegularData(), gammaLogX, 
+        gammaLogY, GammaDistribution(), LogLink(),
+        #= solver =# GradientDescentSolver(learningRate), inverse = GETRIInverse(),
+        control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Regular Data\n", gammaModel.coefficients)
+  #===================================================================#
+  #= Gradient Descent Block Model =#
+  gammaModel = glm(Block1D(), gammaLogBlockX, 
+        gammaLogBlockY, GammaDistribution(), LogLink(),
+        #= solver =# GradientDescentSolver(learningRate), 
+        inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Block Data \n", gammaModel.coefficients)
+  
+  #= Gradient Descent Block1DParallel Model =#
+  gammaModel = glm(Block1DParallel(), gammaLogBlockX, 
+        gammaLogBlockY, GammaDistribution(), LogLink(),
+        #= solver =# GradientDescentSolver(learningRate),
+        inverse = GETRIInverse(), control = Control{Float64}(maxit = niter), 
+        calculateCovariance = true, 
+        doStepControl = false);
+  println("Gradient Descent With Parallel Block Data \n", gammaModel.coefficients)
+  
+  return
+end

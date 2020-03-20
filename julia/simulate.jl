@@ -145,6 +145,8 @@ end
   Function to simulate data
 
   # Example
+  using Random: seed!
+  seed!(0);
   X, y = simulateData(Float64, PoissonDistribution(), LogLink(), 10, 1000)
   X, y = simulateData(Float64, BinomialDistribution(), LogitLink(), 10, 1000)
   X, y = simulateData(Float64, GammaDistribution(), LogLink(), 10, 1000)
@@ -163,6 +165,8 @@ function simulateData(::Type{T}, distrib::AbstractDistribution,
   if typeof(distrib) <: BinomialDistribution
     y = map((x) -> T(1)*(x > 0), eta)
   end
+
+  y = reshape(y, (size(y)[1], 1))
     
   return X, y
 end

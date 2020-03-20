@@ -10,7 +10,8 @@ include(path * "julia/fit.jl")
 include(path * "julia/sample.jl")
 include(path * "julia/simulate.jl")
 
-export write2DArray,
+export matrixToBlock,
+       write2DArray,
        writeBlockMatrix,
        read2DArray,
        readBlockMatrix,
