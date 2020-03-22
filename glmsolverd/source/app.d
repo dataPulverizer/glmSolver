@@ -1,5 +1,5 @@
 import demos.demo;
-
+import demos.scratch;
 void main()
 {
   //timed_demo();
@@ -23,4 +23,6 @@ void main()
   //normDemo();
   //gdNesterovVsNAdamDemo();
   //gdActualVsAMSGradDemo();
+  
+  //block_demo();
 }

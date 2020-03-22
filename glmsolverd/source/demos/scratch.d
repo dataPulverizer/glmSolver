@@ -101,3 +101,17 @@ void inverse_test() /* delete this */
   writeln("Actual (X'X)^(-1): ", invXX);
 }
 
+import glmsolverd.io;
+
+/*
+  Makes sure that the matrixToBlock() function works
+*/
+void block_demo()
+{
+  auto x = createRandomMatrix!(double)(cast(ulong)50, cast(ulong)5);
+  auto xBlock1 = matrixToBlock(x, cast(long)5);
+  writeln("x: ", x);
+  writeln("xBlock1: ", xBlock1);
+  auto xBlock2 = matrixToBlock(x, cast(long)8);
+  writeln("xBlock2: ", xBlock2);
+}

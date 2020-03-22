@@ -4,12 +4,42 @@
 module glmsolverd.io;
 
 import glmsolverd.arrays;
+import glmsolverd.common;
 import std.stdio: File;
 import std.algorithm.sorting: sort;
 import std.array: array;
 import std.stdio: writeln;
+import std.math: fmod;
+
+alias fmod mod;
 
 /**************************************** BINARY IO ***************************************/
+/* Function converts a matrix to a block of rowwise matrices */
+Matrix!(T, layout)[] matrixToBlock(T, CBLAS_LAYOUT layout = CblasColMajor)(Matrix!(T, layout) mat, ulong nBlocks)
+{
+  ulong[] dim = mat.size;
+  ulong n = dim[0];
+  ulong p = dim[1];
+  auto ret = new Matrix!(T, layout)[nBlocks];
+  for(ulong i = 0; i < nBlocks; ++i)
+  {
+    ulong start = (n*i)/nBlocks;
+    ulong finish = (n*(i + 1)/nBlocks);
+    Matrix!(T, layout) temp = zerosMatrix!(T, layout)((finish - start), p);
+    ulong nrow = finish - start;
+    for(ulong k = 0; k < p; ++k)
+    {
+      for(ulong j = start; j < finish; ++j)
+      {
+        ulong l = cast(ulong)mod(cast(real)j, cast(real)nrow);
+        temp[l, k] = mat[j, k];
+      }
+    }
+    ret[i] = temp;
+  }
+  return ret;
+}
+
 void writeColumnVector(T)(string fileName, ColumnVector!T v)
 {
   auto file = File(fileName, "wb");
