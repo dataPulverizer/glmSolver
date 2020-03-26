@@ -9,6 +9,7 @@ import std.random;
 import std.mathspecial : normalDistributionInverse;
 import std.algorithm: fold;
 import std.traits: isFloatingPoint, isIntegral, isNumeric;
+import core.stdc.stdlib: malloc;
 
 /********************************************* Convenient Matrix Functions *********************************************/
 Matrix!T createRandomMatrix(T = double)(ulong m)
@@ -21,6 +22,7 @@ Matrix!T createRandomMatrix(T = double)(ulong m)
     data[i] = uniform01!(T)(gen);
   return new Matrix!T(data, [m, m]);
 }
+/*
 Matrix!T createRandomMatrix(T = double)(ulong m, ulong n)
 {
   Mt19937_64 gen;
@@ -31,6 +33,28 @@ Matrix!T createRandomMatrix(T = double)(ulong m, ulong n)
     data[i] = uniform01!(T)(gen);
   return new Matrix!T(data, [m, n]);
 }
+*/
+Matrix!T createRandomMatrix(T = double)(ulong[] dim)
+{
+  Mt19937_64 gen;
+  gen.seed(unpredictableSeed);
+  ulong len = dim[0]*dim[1];
+  T[] data = new T[len];
+  for(int i = 0; i < len; ++i)
+    data[i] = uniform01!(T)(gen);
+  return new Matrix!T(data, dim.dup);
+}
+Matrix!(T) createRandomMatrix(T = double)(ulong m, ulong seed)
+{
+  Mt19937_64 gen;
+  gen.seed(seed);
+  ulong len = m*m;
+  T[] data = new T[len];
+  for(int i = 0; i < len; ++i)
+    data[i] = uniform!("()")(cast(T)(-1), cast(T)(1), gen);
+  return new Matrix!(T)(data, [m , m]);
+}
+
 /* Random number generator for block matrices */
 BlockMatrix!(T, layout) createRandomBlockMatrix(T = double, CBLAS_LAYOUT layout = CblasColMajor)(ulong m, ulong n, ulong nBlocks)
 {
@@ -77,7 +101,6 @@ ColumnVector!(T) columnVector(T)(T[] data)
 /********************************************* Convenient Vector Functions *********************************************/
 
 /* Unsafe but fast initialization for vector & matrix */
-import core.stdc.stdlib: malloc;
 /* Initialize array using a pointer */
 ColumnVector!(T) fillColumn(T)(T x, ulong n)
 {
@@ -108,10 +131,10 @@ Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong
     arr[i] = x;
   return new Matrix!(T, layout)(arr[0..n], [nrow, ncol]);
 }
-Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
+/*Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
 {
   return fillMatrix!(T, layout)(x, dim[0], dim[1]);
-}
+}*/
 Matrix!(T, layout) zerosMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong[] dim)
 {
   return fillMatrix!(T, layout)(cast(T)0, dim[0], dim[1]);
@@ -119,6 +142,15 @@ Matrix!(T, layout) zerosMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong[] d
 Matrix!(T, layout) zerosMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(ulong nrow, ulong ncol)
 {
   return fillMatrix!(T, layout)(cast(T)0, nrow, ncol);
+}
+/* Create a diagonal matrix with a vector */
+Matrix!(T, layout) diag(T, CBLAS_LAYOUT layout = CblasColMajor)(T[] vec)
+{
+  ulong n = vec.length;
+  auto mat = fillMatrix!(T, layout)(cast(T)(0), [n, n]);
+  for(ulong i = 0; i < n; ++i)
+    mat[i, i] = vec[i];
+  return mat;
 }
 
 
@@ -190,6 +222,21 @@ ColumnVector!T sampleStandardNormal(T = double)(ulong n)
 {
   Mt19937_64 gen;
   gen.seed(unpredictableSeed);
+
+  auto data = cast(T*)malloc(T.sizeof*n);
+  if(data == null)
+    assert(0, "Array Allocation Failed!");
+  
+  for(int i = 0; i < n; ++i)
+    data[i] = normalDistributionInverse(uniform01!(T)(gen));
+  return new ColumnVector!T(data[0..n]);
+}
+
+
+ColumnVector!T sampleStandardNormal(T = double)(ulong n, ulong seed)
+{
+  Mt19937_64 gen;
+  gen.seed(seed);
 
   auto data = cast(T*)malloc(T.sizeof*n);
   if(data == null)

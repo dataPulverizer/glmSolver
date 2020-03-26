@@ -118,7 +118,7 @@ void old_demo() /* Maybe remove this function in time */
   writeln("Create random square matrix:\n", m12);
   writeln("Inverse of a square matrix:\n", inv(m12));
   writeln("Pseudo-inverse of a square matrix:\n", pinv(m12));
-  writeln("Create random rectangular matrix:\n", createRandomMatrix(7, 3));
+  writeln("Create random rectangular matrix:\n", createRandomMatrix([cast(ulong)(7), cast(ulong)(3)]));
 
   writeln("Create random column vector:\n", createRandomColumnVector(5));
   writeln("Create random row vector:\n", createRandomRowVector(5));
@@ -165,7 +165,7 @@ void old_demo() /* Maybe remove this function in time */
   writeln("Read Row Vector from file:\n", v14);
   "RowVector.bin".remove();
 
-  auto m14 = createRandomMatrix(7, 3);
+  auto m14 = createRandomMatrix([cast(ulong)(7), cast(ulong)(3)]);
   writeln("Matrix to be written to file:\n", m14);
   writeMatrix("Matrix.bin", m14);
   string xFile = "Matrix.bin";
@@ -232,7 +232,7 @@ void timed_demo()
 /* Testing single column matrix to column vector casts */
 void testMatrixVectorConversions()
 {
-  auto mat1 = createRandomMatrix(10, 1); // Column Matrix
+  auto mat1 = createRandomMatrix([cast(ulong)(10), cast(ulong)(1)]); // Column Matrix
   writeln("Column matrix: \n", mat1);
 
   auto vec = cast(ColumnVector!double)mat1;

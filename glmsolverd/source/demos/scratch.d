@@ -11,6 +11,7 @@ import glmsolverd.link;
 import glmsolverd.distributions;
 import glmsolverd.tools;
 import glmsolverd.linearalgebra;
+import glmsolverd.sample;
 
 import std.stdio : writeln;
 import std.typecons: Tuple, tuple;
@@ -92,7 +93,7 @@ auto _gelss_test_(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) X, ColumnVector!(T)
 /* ldc2 scratch.d arrays.d arraycommon.d apply.d link.d distributions.d tools.d linearalgebra.d io.d fit.d -O2 -L-lopenblas -L-lpthread -L-llapacke -L-llapack -L-lm && ./scratch */
 void inverse_test() /* delete this */
 {
-  auto X1 = createRandomMatrix!(double)(20, 5);
+  auto X1 = createRandomMatrix!(double)([20, 5]);
   auto y1 = createRandomColumnVector!(double)(20);
   auto X2 = X1.dup; auto y2 = y1.dup;
   writeln("GELS Test: \n", _gels_test_(X1, y1));
@@ -108,10 +109,41 @@ import glmsolverd.io;
 */
 void block_demo()
 {
-  auto x = createRandomMatrix!(double)(cast(ulong)50, cast(ulong)5);
+  auto x = createRandomMatrix!(double)([cast(ulong)50, cast(ulong)5]);
   auto xBlock1 = matrixToBlock(x, cast(long)5);
   writeln("x: ", x);
   writeln("xBlock1: ", xBlock1);
   auto xBlock2 = matrixToBlock(x, cast(long)8);
   writeln("xBlock2: ", xBlock2);
 }
+
+
+/*
+  Makes sure that eigenvalue decomposition works
+*/
+void eigen_demo(ulong m)
+{
+  /* Generate random symmetric matrix */
+  auto mat = createSymmetricMatrix!(double, CblasColMajor)(m);
+  mat = 0.5*(mat + mat.t());
+  auto decomp = eigen(mat);
+  writeln("The matrix: ", mat);
+  writeln("Eigen values: ", decomp.values);
+  writeln("Eigen vectors: ", matrix!(double, CblasColMajor)(decomp.vectors, m));
+}
+
+/* Demo createRandomMatrix() */
+void random_demo(ulong seed, ulong m)
+{
+  //auto mat = createRandomMatrix!(double)(m, seed);
+  //writeln("Matrix: ", mat);
+  auto corr = randomCorrelationMatrix!(double)(m, seed);
+  writeln("Matrix: ", corr);
+  auto chol = cholesky!('U')(corr);
+  writeln("Cholesky decomposition: ", chol);
+
+  auto X = mvrnorm(20, zerosColumn!(double)(m), corr, seed);
+  writeln("Simulated matrix (X): ", X);
+}
+
+

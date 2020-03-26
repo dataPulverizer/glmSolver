@@ -100,6 +100,24 @@ extern(C) @nogc nothrow{
   /* Set the number of threads for blas/lapack in openblas */
   void openblas_set_num_threads(int num_threads);
   //void omp_set_num_threads(int num_threads);
+
+  /* Eigenvalue decomposition for symmetric matrices */
+  int LAPACKE_dsyev(int matrix_layout, char jobz, char uplo, int n, double* a, int lda, double* w);
+  int LAPACKE_ssyev(int matrix_layout, char jobz, char uplo, int n, float* a, int lda, float* w);
+  /* Left/Right Eigenvalue decomposition for general matrices */
+  int LAPACKE_dgeev(int matrix_layout, char jobvl, char jobvr, int n, double* a, int lda, double* wr, double* wi, double* vl, int ldvl, double* vr, int ldvr);
+  int LAPACKE_sgeev(int matrix_layout, char jobvl, char jobvr, int n, float* a, int lda, float* wr, float* wi, float* vl, int ldvl, float* vr, int ldvr);
+ /* Left/Right Eigenvalue decomposition for general matrices with balancing, condition numbers etc. */
+  int LAPACKE_dgeevx(int matrix_layout, char balanc, char jobvl, 
+        char jobvr, char sense, int n, double* a, int lda, 
+        double* wr, double* wi, double* vl, int ldvl, double* vr, 
+        int ldvr, int* ilo, int* ihi, double* scale, 
+        double* abnrm, double* rconde, double* rcondv);
+  int LAPACKE_sgeevx(int matrix_layout, char balanc, char jobvl, 
+        char jobvr, char sense, int n, float* a, int lda, float* wr, 
+        float* wi, float* vl, int ldvl, float* vr, int ldvr, 
+        int* ilo, int* ihi, float* scale, float* abnrm, 
+        float* rconde, float* rcondv);
 }
 
 alias cblas_dgemm dgemm;
@@ -161,6 +179,15 @@ alias LAPACKE_ssytrf sytrf;
 alias LAPACKE_dsytrf sytrf;
 alias LAPACKE_ssytri sytri;
 alias LAPACKE_dsytri sytri;
+/* Eigenvalues and eigenvectors of symmetric matrix */
+alias LAPACKE_dsyev syev;
+alias LAPACKE_ssyev syev;
+/* Eigenvalues and eigenvectors of general matrix */
+alias LAPACKE_dgeev geev;
+alias LAPACKE_sgeev geev;
+
+alias LAPACKE_dgeevx geevx;
+alias LAPACKE_sgeevx geevx;
 
 /* Norm function */
 double norm(int incr = 1)(double[] x)
@@ -237,6 +264,105 @@ if(isFloatingPoint!T)
     x.getData.ptr, incx, beta, y.ptr, incy);
 
   return new ColumnVector!(T)(y);
+}
+/********************************************* Eigenvalue Decomposition ******************************************/
+/* 
+  Eigenvalue Decomposition for Symmetric Matrices
+*/
+auto eigen(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A)
+{
+  int n = cast(int)A.nrow;
+  int lda = n;
+  T[] a = A.getData.dup;
+  T[] w = new T[n];
+  
+  int info = syev(layout, 'V', 'U', n, a.ptr, lda, w.ptr);
+  
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function syevd");
+  
+  auto ret = tuple!("vectors", "values")(a, w);
+  return ret;
+}
+/*
+  Eigenvalue Decomposition for General Matrix
+*/
+auto eigenGeneral(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A)
+{
+  int n = cast(int)A.nrow;
+  int lda = n; int ldvl = n;
+  int ldvr = n;
+
+  T[] a = A.getData.dup;
+  T[] wr = new T[n];
+  T[] wi = new T[n];
+  T[] vl = new T[ldvl*n];
+  T[] vr = new T[ldvr*n];
+  
+  int info = geev(layout, 'N', 'V', n, a.ptr, lda, wr.ptr, wi.ptr, vl.ptr, ldvl, vr.ptr, ldvr);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function geev");
+  
+  auto ret = tuple!("vectors", "values", "values_im")(vr, wr, wi);
+  return ret;
+}
+auto eigenGeneralX(T, CBLAS_LAYOUT layout)(Matrix!(T, layout) A)
+{
+  int n = cast(int)A.nrow;
+  int lda = n; int ldvl = n;
+  int ldvr = n;
+
+  T[] a = A.getData.dup;
+  T[] wr = new T[n];
+  T[] wi = new T[n];
+  T[] vl = new T[ldvl*n];
+  T[] vr = new T[ldvr*n];
+  int ilo, ihi;
+  T scale, abnrm;
+  T[] rconde = new T[n];
+  T[] rcondv = new T[n];
+  
+  int info = geevx(layout, 'N', 'N', 
+        'V', 'V', n, a.ptr, lda, 
+        wr.ptr, wi.ptr, vl.ptr, ldvl, vr.ptr, 
+        ldvr, &ilo, &ihi, &scale, 
+        &abnrm, rconde.ptr, rcondv.ptr);
+  
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function geevx");
+  
+  auto ret = tuple!("vectors", "values", "values_im")(vr, wr, wi);
+  return ret;
+}
+/********************************************* Cholesky (LU) Decomposition ******************************************/
+Matrix!(T, layout) cholesky(char uplo = 'L', T, CBLAS_LAYOUT layout)(Matrix!(T, layout) mat){
+	int p = cast(int)mat.nrow;
+	int[] ipiv; ipiv.length = p;
+  T[] data = mat.getData.dup;
+  
+  int info = potrf(layout, uplo, p, data.ptr, p);
+  assert(info == 0, "Illegal value info " ~ to!(string)(info) ~ " from function potrf");
+  
+  ulong d = cast(ulong)(p);
+  auto ret = fillMatrix!(T, layout)(cast(T)(0), [d, d]);
+  auto A = new Matrix!(T, layout)(data, [p, p]);
+
+  static if(uplo == 'U')
+  {
+    for(ulong i = 0; i < d; ++i)
+      for(ulong j = i; j < d; ++j)
+      {
+        ret[i, j] = A[i, j];
+        //writeln("(i, j): (", i, ", ", j, ")");
+      }
+  }else if(uplo == 'L'){
+    for(ulong j = 0; j < d; ++j)
+      for(ulong i = j; i < d; ++i)
+      {
+        ret[i, j] = A[i, j];
+        //writeln("(i, j): (", i, ", ", j, ")");
+      }
+  }else{
+    assert(0, "Unknown chararacter uplo is neither 'U' or 'L'.");
+  }
+  return ret;
 }
 /********************************************* Matrix Solver ******************************************/
 /*

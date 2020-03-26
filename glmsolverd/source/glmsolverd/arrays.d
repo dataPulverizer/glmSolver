@@ -155,7 +155,7 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
       // Need check for j < n_col & i < n_row
       data[dim[0]*j + i] = x;
     }
-    void opIndexOpAssign(string op)(T x, ulong i, ulong j)
+    T opIndexOpAssign(string op)(T x, ulong i, ulong j)
     {
       static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
         mixin("return data[dim[0]*j + i] " ~ op ~ "= x;");
@@ -166,7 +166,7 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
       assert( data.length == x.getData.length,
             "Number of rows and columns in matrices not equal.");
       ulong n = data.length;
-      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      Matrix!(T, L) ret = new Matrix!(T, L)(dim[0], dim[1]);
       static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
       {
         for(ulong i = 0; i < n; ++i)
@@ -179,7 +179,7 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
     Matrix!(T, L) opBinary(string op)(T rhs)
     {
       ulong n = data.length;
-      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      Matrix!(T, L) ret = new Matrix!(T, L)(dim[0], dim[1]);
       static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
       {
         for(ulong i = 0; i < n; ++i)
@@ -192,7 +192,7 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
     Matrix!(T, L) opBinaryRight(string op)(T lhs)
     {
       ulong n = data.length;
-      Matrix!(T, L) ret = new Matrix(T, L)(dim[0], dim[1]);
+      Matrix!(T, L) ret = new Matrix!(T, L)(dim[0], dim[1]);
       static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
       {
         for(ulong i = 0; i < n; ++i)
@@ -212,6 +212,18 @@ mixin template MatrixGubbings(T, CBLAS_LAYOUT L)
         for(ulong i = 0; i < n; ++i)
         {
           mixin("data[i] " ~ op ~ "= x.getData[i];");
+        }
+      }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
+    }
+    /* mat "op"= rhs */
+    void opOpAssign(string op)(T rhs)
+    {
+      ulong n = data.length;
+      static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+      {
+        for(ulong i = 0; i < n; ++i)
+        {
+          mixin("data[i] " ~ op ~ "= rhs;");
         }
       }else static assert(0, "Operator \"" ~ op ~ "\" not implemented");
     }
@@ -360,7 +372,7 @@ T prod(T)(T[] x)
   return ret;
 }
 /* Create a matrix with shape dim where each element is x */
-Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
+/*Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
 {
   ulong n = dim[0] * dim[1];
   T [] data = new T[n];
@@ -369,6 +381,17 @@ Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong
     data[i] = x;
   }
   return new Matrix!(T, layout)(data, dim);
+}*/
+import core.stdc.stdlib: malloc;
+Matrix!(T, layout) fillMatrix(T, CBLAS_LAYOUT layout = CblasColMajor)(T x, ulong[] dim)
+{
+  ulong n = dim[0] * dim[1];
+  auto arr = cast(T*)malloc(T.sizeof*n);
+  if(arr == null)
+    assert(0, "Array Allocation Failed!");
+  for(ulong i = 0; i < n; ++i)
+    arr[i] = x;
+  return new Matrix!(T, layout)(arr[0..n], dim.dup);
 }
 /********************************************* Vector Classes *********************************************/
 interface Vector(T)
@@ -479,6 +502,15 @@ if(isNumeric!T)
       return;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }
+  void opOpAssign(string op)(T rhs)
+  {
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      for(ulong i = 0; i < data.length; ++i)
+        mixin("data[i] = data[i] " ~ op ~ " rhs;");
+      return;
+    } else static assert(0, "Operator "~ op ~" not implemented");
+  }
   @property ColumnVector!(T) dup()
   {
     return new ColumnVector!T(data.dup);
@@ -533,6 +565,15 @@ if(isNumeric!T)
       assert(data.len == rhs.data.len, "Vector lengths are not the same.");
       for(ulong i = 0; i < data.len; ++i)
         mixin("data[i] = data[i] "~ op ~ " rhs.data[i]");
+      return;
+    } else static assert(0, "Operator "~ op ~" not implemented");
+  }
+  void opOpAssign(string op)(T rhs)
+  {
+    static if((op == "+") | (op == "-") | (op == "*") | (op == "/") | (op == "^^"))
+    {
+      for(ulong i = 0; i < data.len; ++i)
+        mixin("data[i] = data[i] "~ op ~ " rhs");
       return;
     } else static assert(0, "Operator "~ op ~" not implemented");
   }

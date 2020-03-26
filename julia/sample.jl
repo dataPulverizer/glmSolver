@@ -296,7 +296,7 @@ function randomCorrelationMatrix(::Type{T}, ::UniformGenerator, d::Int64) where 
   end
   ev = eigen(r)
   r = ev.vectors * diagm(sort(abs.(ev.values))) * ev.vectors'
-  maxR = max(r)
+  maxR = max(abs.(r)...)
   r ./= maxR
   r .= T(0.5) .* (r + r')
   for i in 1:d
