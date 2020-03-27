@@ -89,8 +89,8 @@ can be tried out. Link Functions:
   - [ ] vii. Look for further performance optimization, use **packed** format for symmetric matrix calls which would require fewer computations and could make a difference for problems with a large number of parameters.
   - [ ] viii.  Implement data synthesis functions for GLM. Use Chapter 5 of Hardin & Hilbe and use this for benchmarking. So that users can demo without
   data dependancy.
-  - [ ] viii.  Implement data synthesis functions for GLM.
-    - [x] (a) Implement the functions.
+  - [ ] viii.  Data synthesis and library consolidation.
+    - [x] (a) Implement the data synthesis functions.
     - [ ] (b) Change examples using simulated data rather than external (user unavailable data).
     - [ ] (c) Fully package the Julia code.
   - [ ] ix. Implement L-BFGS solver options.
