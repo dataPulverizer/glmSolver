@@ -323,9 +323,12 @@ function simulateData(::Type{T}, p::Int64, n::Int64, delta::T = T(0)) where {T <
   corr = randomCorrelationMatrix(T, UniformGenerator(), p)
   mu = zeros(T, p)
   X = mvrnorm(n, mu, corr)
+
+  #= The intercept =#
+  X[:, 1] .= T(1)
   
   b = zeros(T, p)
-  idist = UniformSampleDistribution(T(0), T(0.3))
+  idist = UniformSampleDistribution(T(0), T(0.1))
   b[1] = sample(idist, 1)[1]
   if length(b) > 1
     distrib = UniformSampleDistribution(T(-0.1), T(0.1))

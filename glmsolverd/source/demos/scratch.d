@@ -142,8 +142,29 @@ void random_demo(ulong seed, ulong m)
   auto chol = cholesky!('U')(corr);
   writeln("Cholesky decomposition: ", chol);
 
-  auto X = mvrnorm(20, zerosColumn!(double)(m), corr, seed);
-  writeln("Simulated matrix (X): ", X);
+  //auto X = mvrnorm(20, zerosColumn!(double)(m), corr, seed);
+  //writeln("Simulated matrix (X): ", X);
+  auto Xy = simulateData!(double, CblasColMajor)(5, 100, 3);
+  writeln("Xy: ", Xy);
+
+  /* Sampling from the Poisson Distribution */
+  AbstractDistribution!(double) distrib = new PoissonDistribution!(double)();
+  AbstractLink!(double) link = new LogLink!(double)();
+  auto poissSample = _sample_poisson(link.linkinv(Xy.eta), seed);
+  writeln("Poisson data: ", poissSample.getData);
+
+  /* Generate GLM data for Poisson distributed Y */
+  auto poissonData = simulateData!(double, CblasColMajor)(distrib, 
+            link, 5, 50, seed);
+  writeln("X: ", poissonData.X);
+  writeln("y: ", poissonData.y.getData);
+
+  /* Generate GLM data for binomial distributed Y */
+  distrib = new BinomialDistribution!(double)();
+  link = new LogitLink!(double)();
+  auto binomData = simulateData!(double, CblasColMajor)(distrib, link, 5, 50, seed);
+  writeln("Binomial X: ", binomData.X);
+  writeln("Binomial y: ", binomData.y.getData);
 }
 
 

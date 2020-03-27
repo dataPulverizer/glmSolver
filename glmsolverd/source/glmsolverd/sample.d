@@ -13,10 +13,13 @@ import glmsolverd.linearalgebra;
 
 import std.stdio : writeln;
 import std.typecons: Tuple, tuple;
-import std.random: Random, uniform;
+import std.random: Mt19937_64, uniform;
 
-import std.math: abs, pow, fmax;
+import std.math: abs, exp, fmax, pow;
 alias fmax max;
+
+import std.algorithm.iteration: mean;
+
 
 Matrix!(T) randomCorrelationMatrix(T)(ulong d, ulong seed)
 {
@@ -86,4 +89,91 @@ Matrix!(T, layout) mvrnorm(T, CBLAS_LAYOUT layout = CblasColMajor)
 
   return output;
 }
+
+/*
+  Function to simulate X and eta, p = number of parameters,
+  n = number of samples.
+*/
+auto simulateData(T, CBLAS_LAYOUT layout = CblasColMajor)
+  (ulong p, ulong n, ulong seed, T delta = cast(T)(0))
+{
+  auto corr = randomCorrelationMatrix!(T)(p, seed);
+  auto mu = zerosColumn!(T)(p);
+  auto X = mvrnorm!(T, layout)(n, mu, corr, ++seed);
+
+  /* The intercept */
+  for(ulong i = 0; i < n; ++i)
+    X[i, 0] = cast(T)(1);
+
+  auto b = zerosColumn!(T)(p);
+  Mt19937_64 rng;
+  rng.seed(seed);
+
+  /* The intercept */
+  b[0] = uniform!("()")(cast(T)(0), cast(T)(0.1), rng);
+
+  if(b.length > 1)
+  {
+    for(ulong i = 1; i < p; ++i)
+      b[i] = uniform!("()")(cast(T)(-1), cast(T)(1), rng);
+  }
+
+  auto eta = mult_(X, b);
+  T sd = 0.5 * abs(mean(eta.getData));
+  eta += delta + (sd * sampleStandardNormal!(T)(n, ++seed));
+
+  return tuple!("X", "eta")(X, eta);
+}
+
+/*
+  Function to sample a vector from  Poisson Distribution
+  when given a vector of lambdas
+*/
+ColumnVector!(T) _sample_poisson(T)(ColumnVector!(T) lambda, ulong seed)
+{
+  ulong n = lambda.length;
+  auto vec = zerosColumn!(T)(n);
+  
+  Mt19937_64 rng;
+  rng.seed(seed);
+  
+  for(ulong i = 0; i < n; ++i)
+  {
+    T p = exp(-lambda[i]);
+    T F = p; T x = 0;
+    T u = uniform!("()")(cast(T)(0), cast(T)(1), rng);
+    while(true)
+    {
+      if(u < F)
+        break;
+      x += 1;
+      p *= lambda[i]/x;
+      F += p;
+    }
+    vec[i] = x;
+  }
+  
+  return vec;
+}
+
+/*
+  Function to simulate data for GLM
+*/
+auto simulateData(T, CBLAS_LAYOUT layout = CblasColMajor)
+  (AbstractDistribution!(T) distrib, AbstractLink!(T) link,
+  ulong p, ulong n, ulong seed)
+{
+  auto Xy = simulateData!(T, layout)(p, n, seed);
+  auto y = link.linkinv(Xy.eta);
+  
+  if(distrib.toString() == "PoissonDistribution")
+    y = _sample_poisson(y, seed);
+  
+  if(distrib.toString() == "BinomialDistribution")
+    y = map!((x) => cast(T)(1) * (x > 0))(Xy.eta);
+  
+  return tuple!("X", "y")(Xy.X, y);
+}
+
+
 
