@@ -164,14 +164,25 @@ auto simulateData(T, CBLAS_LAYOUT layout = CblasColMajor)
   ulong p, ulong n, ulong seed)
 {
   auto Xy = simulateData!(T, layout)(p, n, seed);
-  auto y = link.linkinv(Xy.eta);
+  auto _y = link.linkinv(Xy.eta);
   
   if(distrib.toString() == "PoissonDistribution")
-    y = _sample_poisson(y, seed);
+  {
+    _y = _sample_poisson(_y, ++seed);
+    //writeln("Length: ", _y.getData);
+  }
   
   if(distrib.toString() == "BinomialDistribution")
-    y = map!((x) => cast(T)(1) * (x > 0))(Xy.eta);
+  {
+    Mt19937_64 rng;
+    rng.seed(++seed);
+    /* Add extra noise to the data */
+    _y = map!((x) => cast(T)(1) * (x > uniform!("()")(cast(T)(0), cast(T)(1), rng)))(_y);
+    //writeln("Length: ", _y.getData);
+  }
   
+  auto y = new Matrix!(T, layout)(_y.getData, [n, cast(ulong)1]);
+
   return tuple!("X", "y")(Xy.X, y);
 }
 

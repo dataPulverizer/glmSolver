@@ -13,7 +13,7 @@ void main()
   //testBlockIO();
   //gdMomentumDemo();
   //gdMomentumDataDemo();
-    //gdNesterovDataDemo();
+  //gdNesterovDataDemo();
   //gdNesterovVsMomentumDemo();
   //gdNesterovVsAdagradDemo();
   //gdNesterovVsAdadeltaDemo();
@@ -26,5 +26,10 @@ void main()
   
   //block_demo();
   //eigen_demo(4);
-  random_demo(3, 5);
+  //random_demo(3, 5);
+
+  /* From Simulated Data */
+  //timed_demo();
+  //parallelBlockGLMDemo();
+  gdMomentumDemo();
 }

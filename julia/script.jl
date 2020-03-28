@@ -11,7 +11,7 @@ include(path * "julia/data.jl");
 
 # Fit the models
 # TODO: Fix the things that are not converging
-gamma_distrib_log_link = glm(RegularData(), energyX, energyY, GammaDistribution(), LogLink(), GESVSolver(), GETRIInverse())
+gamma_distrib_log_link = glm(RegularData(), energyX, energyY, GammaDistribution(), LogLink(), GESVSolver(), inverse = GETRIInverse())
 gamma_distrib_inverse_link = glm(RegularData(), energyX, energyY, GammaDistribution(), InverseLink(), GESVSolver(), GETRIInverse()) 
 gamma_distrib_identity_link = glm(RegularData(), energyX, energyY, GammaDistribution(), IdentityLink(), GESVSolver(), GETRIInverse())
 
