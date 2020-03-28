@@ -110,12 +110,12 @@ auto simulateData(T, CBLAS_LAYOUT layout = CblasColMajor)
   rng.seed(seed);
 
   /* The intercept */
-  b[0] = uniform!("()")(cast(T)(0), cast(T)(0.1), rng);
+  b[0] = uniform!("()")(cast(T)(0), cast(T)(0.3), rng);
 
   if(b.length > 1)
   {
     for(ulong i = 1; i < p; ++i)
-      b[i] = uniform!("()")(cast(T)(-1), cast(T)(1), rng);
+      b[i] = uniform!("()")(cast(T)(-0.1), cast(T)(0.1), rng);
   }
 
   auto eta = mult_(X, b);

@@ -31,5 +31,14 @@ void main()
   /* From Simulated Data */
   //timed_demo();
   //parallelBlockGLMDemo();
-  gdMomentumDemo();
+  //gdDataDemo();
+  //gdMomentumDemo();
+  //gdMomentumDataDemo();
+  //gdNesterovDataDemo();
+  //gdAdagradDataDemo();
+  //gdAdadeltaDataDemo();
+  //gdRMSPropDataDemo();
+  //gdAdaMaxDataDemo();
+  //gdNAdamDataDemo();
+  gdAMSGradDataDemo();
 }
