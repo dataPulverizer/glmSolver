@@ -29,7 +29,7 @@ void main()
   //random_demo(3, 5);
 
   /* From Simulated Data */
-  //timed_demo();
+  timed_demo();
   //parallelBlockGLMDemo();
   //gdDataDemo();
   //gdMomentumDemo();
@@ -40,5 +40,6 @@ void main()
   //gdRMSPropDataDemo();
   //gdAdaMaxDataDemo();
   //gdNAdamDataDemo();
-  gdAMSGradDataDemo();
+  //gdAMSGradDataDemo();
+  //glm_demo();
 }

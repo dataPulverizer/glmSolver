@@ -25,7 +25,7 @@ import glmsolverd.linearalgebra;
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         RegularData dataType,  Matrix!(T, layout) x, 
         Matrix!(T, layout) _y, AbstractDistribution!T distrib, AbstractLink!T link,
-        AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
+        AbstractSolver!(T) solver = new GESVSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(), ColumnVector!T offset = zerosColumn!T(0),
         ColumnVector!T weights = zerosColumn!T(0))
@@ -172,7 +172,7 @@ if(isFloatingPoint!T)
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Block1D dataType, Matrix!(T, layout)[] x, 
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
-        AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
+        AbstractSolver!(T) solver = new GESVSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(), ColumnVector!(T)[] offset = new ColumnVector!(T)[0],
         ColumnVector!(T)[] weights = new ColumnVector!(T)[0])
@@ -346,7 +346,7 @@ if(isFloatingPoint!T)
 auto glm(T, CBLAS_LAYOUT layout = CblasColMajor)(
         Block1DParallel dataType, Matrix!(T, layout)[] x, 
         Matrix!(T, layout)[] _y, AbstractDistribution!T distrib, AbstractLink!T link,
-        AbstractSolver!(T) solver = new VanillaSolver!(T)(), 
+        AbstractSolver!(T) solver = new GESVSolver!(T)(), 
         AbstractInverse!(T, layout) inverse = new GETRIInverse!(T, layout)(), 
         Control!T control = new Control!T(),
         uint nThreads = cast(uint)(totalCPUs - 1), 
