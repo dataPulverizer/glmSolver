@@ -1,14 +1,13 @@
-module GLMSolver
+module glmSolverjl
 
-path = "/home/chib/code/glmSolver/"
-include(path * "julia/io.jl")
-include(path * "julia/link.jl")
-include(path * "julia/family.jl")
-include(path * "julia/solver.jl")
-include(path * "julia/tools.jl")
-include(path * "julia/fit.jl")
-include(path * "julia/sample.jl")
-include(path * "julia/simulate.jl")
+include("io.jl")
+include("link.jl")
+include("family.jl")
+include("solver.jl")
+include("tools.jl")
+include("fit.jl")
+include("sample.jl")
+include("simulate.jl")
 
 export matrixToBlock,
        write2DArray,

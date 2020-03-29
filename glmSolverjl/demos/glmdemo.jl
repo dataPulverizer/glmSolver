@@ -1,14 +1,8 @@
 #=
-  Demos for various glm functions
+  Demos for standard glm algos
 =#
-path = "/home/chib/code/glmSolver/"
 
-include(path * "julia/GLMSolver.jl")
-using .GLMSolver
-
-# Load the data set
-# include(path * "julia/data.jl");
-
+using glmSolverjl
 using Random: seed!
 
 seed!(0);

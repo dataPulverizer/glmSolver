@@ -4,7 +4,7 @@
 
 using Base.Threads: @threads, nthreads, threadid
 using LinearAlgebra.BLAS: set_num_threads
-
+using Base.Filesystem: mkdir, readdir
 
 # Convert a matrix to a list of matrices
 function matrixToBlock(mat::Array{T, 2}, nBlocks::Int64) where {T <: AbstractFloat}
@@ -42,7 +42,6 @@ function write2DArray(arr::Array{T}, fileName::String) where {T <: AbstractFloat
 
 end
 
-using Base.Filesystem: mkdir
 function writeBlockMatrix(blockMatrix::Array{Array{T, 2}, 1}, path::String) where {T <: AbstractFloat}
   mkdir(path)
   nchar::Int64 = length(path)
@@ -80,7 +79,7 @@ function read2DArray(::Type{T}, fileName::String) where {T <: AbstractFloat}
   return arr
 end
 
-using Base.Filesystem: readdir
+
 function readBlockMatrix(::Type{T}, path::String) where {T <: AbstractFloat}
   nchar::Int64 = length(path)
   # Unix dependent

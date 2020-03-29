@@ -1,4 +1,5 @@
 using LinearAlgebra: eigen, cholesky, diag, diagm, UpperTriangular, LowerTriangular
+using Statistics: mean
 
 """
   Functions for mvrnorm, covriance to correlation conversion (cov2cor)
@@ -306,8 +307,6 @@ function randomCorrelationMatrix(::Type{T}, ::UniformGenerator, d::Int64) where 
 end
 
 #=======================================================================================================#
-
-using Statistics: mean
 
 """
   Function to simulate X and eta, p = number of parameters 

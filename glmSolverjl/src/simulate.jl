@@ -1,7 +1,3 @@
-# path = "/home/chib/code/glmSolver/"
-# include(path * "/julia/GLMSolver.jl")
-# using .GLMSolver
-
 """
   Sampling from a poisson distribution
 """

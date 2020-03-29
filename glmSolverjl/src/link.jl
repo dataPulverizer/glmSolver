@@ -2,13 +2,12 @@
   GLM Link Functions
 =#
 
+using Distributions
+
 abstract type AbstractMatrixType end
 struct RegularData <: AbstractMatrixType end
 struct Block1D <: AbstractMatrixType end
 struct Block1DParallel <: AbstractMatrixType end
-
-
-using Distributions
 
 # Defining the standard normal for further use
 const standardNormal = Normal()

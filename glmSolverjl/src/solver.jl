@@ -1,3 +1,5 @@
+using LinearAlgebra: norm
+
 #=
   Solvers for GLM
 =#
@@ -1110,7 +1112,6 @@ function iteration(obj::AdaMaxSolver, iter::Int64)
   return obj
 end
 
-using LinearAlgebra: norm
 macro AdaMaxUpdate()
   expr = quote
     grad = gradient(dataType, distrib, link, y, x, mu, eta)

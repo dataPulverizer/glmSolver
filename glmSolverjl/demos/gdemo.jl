@@ -1,10 +1,8 @@
 #=
-  Demos for gradient descent 
+  Demos for gradient descent glm algos
 =#
-path = "/home/chib/code/glmSolver/"
 
-include(path * "julia/GLMSolver.jl")
-using .GLMSolver
+using glmSolverjl
 using Random: seed!
 
 seed!(0);
