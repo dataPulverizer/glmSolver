@@ -753,9 +753,6 @@ void gdAMSGradDataDemo()
   writeln("AMSGrad Gradient Descent With Parallel Block Data \n", gammaModel);
 }
 
-
-
-/***************************** OLD DEMO STUFF **********************************/
 /* Function contains many GLM examples */
 void glm_demo()
 {

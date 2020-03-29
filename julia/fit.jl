@@ -85,6 +85,8 @@ function glm(::RegularData, x::Array{T, 2}, y::Array{T}, distrib::AbstractDistri
     end
     mu = linkinv(link, eta)
     
+    # println("Iteration: $iter");
+
     if length(weights) == 0
       residuals = devianceResiduals(distrib, mu, y)
     else

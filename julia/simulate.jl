@@ -155,18 +155,25 @@ end
 function simulateData(::Type{T}, distrib::AbstractDistribution, 
               link::AbstractLink, p::Int64, n::Int64) where {T <: AbstractFloat}
   
+  X = Array{T, 2}(undef, (0, 0))
+  eta = Array{T, 1}(undef, (0,))
+  
   X, eta = simulateData(T, p, n)
   y = linkinv(link, eta)
+
+  if (typeof(distrib) <: GammaDistribution)
+    y .+= 10
+  end
 
   if typeof(distrib) <: PoissonDistribution
     y = sample(AbstractPoissonDistribution, y, Val{2}())
   end
 
   if typeof(distrib) <: BinomialDistribution
-    y = map((x) -> T(1)*(x > 0), eta)
+    y = map((x, u) -> T(1)*(x > u), y, rand(T, n))
   end
-
+  
   y = reshape(y, (size(y)[1], 1))
-    
+  
   return X, y
 end

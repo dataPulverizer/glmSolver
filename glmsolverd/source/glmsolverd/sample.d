@@ -180,6 +180,11 @@ auto simulateData(T, CBLAS_LAYOUT layout = CblasColMajor)
     _y = map!((x) => cast(T)(1) * (x > uniform!("()")(cast(T)(0), cast(T)(1), rng)))(_y);
     //writeln("Length: ", _y.getData);
   }
+
+  if(distrib.toString() == "GammaDistribution")
+  {
+    _y += 10;
+  }
   
   auto y = new Matrix!(T, layout)(_y.getData, [n, cast(ulong)1]);
 

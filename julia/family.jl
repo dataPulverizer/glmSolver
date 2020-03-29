@@ -3,6 +3,13 @@
 =#
 
 #=
+  References:
+
+  1. Generalized Linear Models & Extensions: J. W. Hardin & J. M. Hilbe
+=#
+
+
+#=
   Types for Distribution Functions
 =#
 abstract type AbstractDistribution end

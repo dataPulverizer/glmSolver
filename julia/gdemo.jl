@@ -5,7 +5,6 @@ path = "/home/chib/code/glmSolver/"
 
 include(path * "julia/GLMSolver.jl")
 using .GLMSolver
-using DelimitedFiles: readdlm, writedlm
 using Random: seed!
 
 seed!(0);
