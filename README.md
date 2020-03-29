@@ -91,7 +91,7 @@ can be tried out. Link Functions:
   data dependancy.
   - [ ] viii.  Data synthesis and library consolidation.
     - [x] (a) Implement the data synthesis functions.
-    - [ ] (b) Change examples using simulated data rather than external (user unavailable data).
+    - [x] (b) Change examples using simulated data rather than external (user unavailable data).
     - [ ] (c) Fully package the Julia code.
   - [ ] ix. Implement L-BFGS solver options.
   - [ ] x. Include a sparse solver?
